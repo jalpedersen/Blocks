@@ -17,7 +17,7 @@ static thread_pool_t *pool = NULL;
 
 static int l_blocks_init(lua_State *L) {
 	if (pool == NULL) {
-		pool = threads_init(L);
+		pool = threads_init(L, 5);
 	}
 	return 0;
 }

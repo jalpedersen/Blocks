@@ -10,7 +10,7 @@
 
 typedef struct thread_pool thread_pool_t;
 
-thread_pool_t *threads_init(lua_State *L);
+thread_pool_t *threads_init(lua_State *L, int size);
 
 int spawn(struct thread_pool *pool, lua_State *L);
 

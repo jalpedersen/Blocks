@@ -187,14 +187,14 @@ int spawn(struct thread_pool *pool, lua_State *parent) {
 	return 1;
 }
 
-thread_pool_t *threads_init(lua_State *L) {
+thread_pool_t *threads_init(lua_State *L, int size) {
 	int i;
 	struct thread_pool *pool = malloc(sizeof(struct thread_pool));
 	pthread_mutex_init(&pool->mutex, NULL);
 	pthread_cond_init(&pool->new_job, NULL);
-	pool->threads = malloc(sizeof(pthread_t*) * 5);
+	pool->threads = malloc(sizeof(pthread_t*) * size);
 	pool->task_queue = NULL;
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < size; i++) {
 		pool->threads[i] = malloc(sizeof(pthread_t));
 		pthread_create(pool->threads[i], NULL, worker, pool);
 	}
