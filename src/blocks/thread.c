@@ -9,12 +9,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <lua.h>
+#include <lualib.h>
 #include <lauxlib.h>
 #include "thread.h"
 #include "log.h"
 #include "lua_util.h"
-
-const char *jobs_table_key = "J";
+#include "blocks.h"
 
 struct task {
 	lua_State *parent;
@@ -56,15 +56,6 @@ static struct task *push_task(thread_pool_t *pool, struct task *task) {
 	}
 	return head;
 }
-static void save_table(lua_State *L, void *thread) {
-	lua_pushlightuserdata(L, &jobs_table_key);
-	lua_gettable(L, LUA_REGISTRYINDEX);
-	lua_pushlightuserdata(L, thread);
-	lua_pushvalue(L, -3);
-	lua_settable(L, -3);
-	/* Remove thread and table from stack */
-	lua_pop(L, 2);
-}
 
 static void *worker(void *args) {
 	lua_State *L;
@@ -85,8 +76,7 @@ static void *worker(void *args) {
 		if (t != NULL) {
 			log_debug("Executing thread (0x%x)", (int)pthread_self());
 			lua_eval(t->L);
-			lua_pushnil(t->L);
-			save_table(t->L, t->L);
+			lua_close(t->L);
 			free(t);
 		} else {
 			log_debug("No new task");
@@ -94,7 +84,13 @@ static void *worker(void *args) {
 	}
 	return NULL;
 }
-
+static int testing(lua_State *L) {
+	log_debug("blah from testing");
+	return 0;
+}
+static void copy_stack(lua_State *src, lua_State *dst) {
+	lua_pushcfunction(dst, testing);
+}
 
 int spawn(struct thread_pool *pool, lua_State *parent) {
 	struct task *task = malloc(sizeof(struct task));
@@ -102,14 +98,14 @@ int spawn(struct thread_pool *pool, lua_State *parent) {
 	log_debug("New job");
 
 	task->parent = parent;
-	task->L = lua_newthread(parent);
+	task->L = luaL_newstate();
+	copy_stack(parent, task->L);
 
-	save_table(parent, task->L);
+	lua_stackdump(task->L);
+	lua_stackdump(parent);
 
 	/* Copy values from parent */
-	lua_xmove(parent, task->L, lua_gettop(parent));
 	push_task(pool, task);
-	lua_gc(parent, LUA_GCRESTART, 0);
 
 	pthread_cond_signal(&pool->new_job);
 	pthread_mutex_unlock(&pool->mutex);
@@ -127,9 +123,5 @@ thread_pool_t *threads_init(lua_State *L) {
 		pool->threads[i] = malloc(sizeof(pthread_t));
 		pthread_create(pool->threads[i], NULL, worker, pool);
 	}
-	lua_pushlightuserdata(L, &jobs_table_key);
-	lua_newtable(L);
-	lua_settable(L, LUA_REGISTRYINDEX);
-
 	return pool;
 }
