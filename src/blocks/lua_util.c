@@ -44,7 +44,6 @@ int lua_eval_part(lua_State *L, int narg, int nres) {
 	lua_remove(L, error_index);
 	switch (ret) {
 	case 0:
-		log_debug("OK");
 		/* All is good */
 		break;
 	case LUA_ERRRUN:

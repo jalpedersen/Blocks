@@ -16,14 +16,10 @@
 #include "lua_util.h"
 #include "blocks.h"
 
-struct message {
-	struct message *next;
-};
 struct task {
 	lua_State *L;
 	short is_loaded;
 	struct task *next;
-	struct message *message;
 };
 
 struct thread_pool {
@@ -33,7 +29,6 @@ struct thread_pool {
 	pthread_t **threads;
 	struct task *task_queue;
 };
-
 
 /**
  * Thread pool must be locked before calling get_task
@@ -203,7 +198,6 @@ static void copy_stack(lua_State *src, lua_State *dst) {
 
 int spawn(struct thread_pool *pool, lua_State *parent) {
 	struct task *task = malloc(sizeof(struct task));
-	pthread_mutex_lock(&pool->mutex);
 
 	task->L = luaL_newstate();
 	task->is_loaded = 0;
@@ -213,11 +207,14 @@ int spawn(struct thread_pool *pool, lua_State *parent) {
 	/* Copy values from parent */
 	copy_stack(parent, task->L);
 
+	pthread_mutex_lock(&pool->mutex);
 	push_task(pool, task);
-
 	pthread_cond_signal(&pool->new_job);
 	pthread_mutex_unlock(&pool->mutex);
-	return 1;
+
+	/* Remove spawned function and arguments from parent stack */
+	lua_settop(parent, 0);
+	return 0;
 }
 
 thread_pool_t *threads_init(lua_State *L, int size) {
@@ -233,3 +230,4 @@ thread_pool_t *threads_init(lua_State *L, int size) {
 	}
 	return pool;
 }
+
