@@ -16,11 +16,13 @@
 #include "lua_util.h"
 #include "blocks.h"
 
+struct message {
+	struct message *next;
+};
 struct task {
-	lua_State *parent;
 	lua_State *L;
-
 	struct task *next;
+	struct message *message;
 };
 
 struct thread_pool {
@@ -58,7 +60,6 @@ static struct task *push_task(thread_pool_t *pool, struct task *task) {
 }
 
 static void *worker(void *args) {
-	lua_State *L;
 	struct task *t;
 	struct thread_pool *pool = args;
 
@@ -72,39 +73,113 @@ static void *worker(void *args) {
 		}
 		pthread_mutex_unlock(&pool->mutex);
 		log_debug("Got new job (0x%x)", (int)pthread_self());
-
 		if (t != NULL) {
-			log_debug("Executing thread (0x%x)", (int)pthread_self());
+			/* Evaluate function that evaluates the real function */
+			lua_pushvalue(t->L, 1);
+			/* Load function from string dump */
+			lua_eval_part(t->L, 0, 1);
+			/* Replace loader function with real function */
+			lua_replace(t->L, 1);
+			/* Evaluate real function */
 			lua_eval(t->L);
 			lua_close(t->L);
 			free(t);
-		} else {
-			log_debug("No new task");
 		}
 	}
 	return NULL;
 }
-static int testing(lua_State *L) {
-	log_debug("blah from testing");
+
+static int load_string(lua_State *L) {
+	int ret;
+	size_t fn_dump_size;
+	const char *fn_dump;
+
+	fn_dump_size = lua_tointeger(L, lua_upvalueindex(1));
+	fn_dump = lua_tolstring(L, lua_upvalueindex(2), &fn_dump_size);
+
+	ret = luaL_loadbuffer(L, fn_dump, fn_dump_size, "Chunk");
+	switch (ret) {
+	case 0:
+		break;
+	case LUA_ERRMEM:
+	case LUA_ERRSYNTAX:
+		luaL_error(L, lua_tostring(L, -1));
+	default:
+		luaL_error(L, "Unexpected state: %d", ret);
+	}
+
+	return 1;
+}
+
+static int function_writer (lua_State *L, const void* b, size_t size, void* B) {
+	luaL_addlstring((luaL_Buffer*) B, (const char *)b, size);
 	return 0;
 }
+
+static int copy_function (lua_State *src, lua_State *dst, int index) {
+  luaL_Buffer b, b2;
+  const char *fn_dump;
+  size_t fn_size;
+  lua_pushvalue(src, index);
+  luaL_checktype(src, index, LUA_TFUNCTION);
+  luaL_buffinit(src, &b);
+  if (lua_dump(src, function_writer, &b) != 0) {
+    luaL_error(src, "Could not dump function");
+  }
+  luaL_pushresult(&b);
+  fn_size = lua_objlen(src, -1);
+  fn_dump = lua_tolstring(src, -1, &fn_size);
+  lua_pushinteger(dst, fn_size);
+  lua_pushlstring(dst, fn_dump, fn_size);
+  lua_pop(src, 2); /* Remove string and copied function */
+  lua_pushcclosure(dst, load_string, 2);
+  return 1;
+}
+
 static void copy_stack(lua_State *src, lua_State *dst) {
-	lua_pushcfunction(dst, testing);
+	int src_top, i, type;
+	src_top = lua_gettop(src);
+	if ( ! lua_isfunction(src, 1)) {
+		luaL_error(src, "Argument 1 must be a function. Was %s", lua_typename(src, 1));
+	}
+	for (i = 1; i <= src_top; i++) {
+		type = lua_type(src, i);
+		log_debug("Copying %s (%d)", lua_typename(src, type), i);
+		switch (type) {
+		case LUA_TFUNCTION:
+			copy_function(src, dst, i);
+			break;
+		case LUA_TTHREAD:
+			lua_pushnil(dst);
+			break;
+		case LUA_TNUMBER:
+			lua_pushnumber(dst, lua_tonumber(src, i));
+			break;
+		case LUA_TTABLE:
+			lua_pushnil(dst);
+			break;
+		case LUA_TBOOLEAN:
+			break;
+		case LUA_TNIL:
+		default:
+			lua_pushnil(dst);
+			log_debug("type: %s", lua_typename(src, type));
+			break;
+		}
+	}
 }
 
 int spawn(struct thread_pool *pool, lua_State *parent) {
 	struct task *task = malloc(sizeof(struct task));
 	pthread_mutex_lock(&pool->mutex);
-	log_debug("New job");
 
-	task->parent = parent;
 	task->L = luaL_newstate();
-	copy_stack(parent, task->L);
-
-	lua_stackdump(task->L);
-	lua_stackdump(parent);
+	luaL_openlibs(task->L);
+	luaopen_blocks(task->L);
 
 	/* Copy values from parent */
+	copy_stack(parent, task->L);
+
 	push_task(pool, task);
 
 	pthread_cond_signal(&pool->new_job);

@@ -27,16 +27,20 @@ static int traceback (lua_State *L) {
 	lua_call(L, 2, 1);  /* call debug.traceback */
 	return 1;
 }
-
 int lua_eval(lua_State *L) {
-	int ret, error_index, narg;
-	narg = lua_gettop(L) - 1; /* remove function */
+	return lua_eval_part(L,
+						 lua_gettop(L)-1, /* don't include function */
+						 LUA_MULTRET);
+}
+int lua_eval_part(lua_State *L, int narg, int nres) {
+	int ret, error_index;
+
 	error_index = lua_gettop(L) - narg;
 	lua_pushcfunction(L, traceback);
 	lua_insert(L, error_index);
-	ret = lua_pcall(L, narg, LUA_MULTRET, error_index);
+	ret = lua_pcall(L, narg, nres, error_index);
 
-	/* Remove traceback */
+	/* Remove traceback function */
 	lua_remove(L, error_index);
 	switch (ret) {
 	case 0:
