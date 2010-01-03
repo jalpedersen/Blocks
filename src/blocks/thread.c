@@ -21,6 +21,7 @@ struct message {
 };
 struct task {
 	lua_State *L;
+	short is_loaded;
 	struct task *next;
 	struct message *message;
 };
@@ -60,6 +61,7 @@ static struct task *push_task(thread_pool_t *pool, struct task *task) {
 }
 
 static void *worker(void *args) {
+	lua_State *L;
 	struct task *t;
 	struct thread_pool *pool = args;
 
@@ -72,18 +74,40 @@ static void *worker(void *args) {
 			t = pop_task(pool);
 		}
 		pthread_mutex_unlock(&pool->mutex);
-		log_debug("Got new job (0x%x)", (int)pthread_self());
 		if (t != NULL) {
-			/* Evaluate function that evaluates the real function */
-			lua_pushvalue(t->L, 1);
-			/* Load function from string dump */
-			lua_eval_part(t->L, 0, 1);
-			/* Replace loader function with real function */
-			lua_replace(t->L, 1);
+			if ( ! t->is_loaded) {
+				L = t->L;
+				/* Evaluate function that evaluates the real function */
+				lua_pushvalue(L, 1);
+				/* Load function from string dump */
+				lua_eval_part(L, 0, 1);
+				/* Replace loader function with real function */
+				lua_replace(L, 1);
+				t->is_loaded = 1;
+			}
 			/* Evaluate real function */
-			lua_eval(t->L);
-			lua_close(t->L);
-			free(t);
+			lua_eval(L);
+
+			/* If function hasn't left anything on the
+			 * stack it is done and we close it's state */
+			if (lua_gettop(L) == 0) {
+				lua_close(L);
+				free(t);
+			} else {
+				/* if a function is returned, task goes back
+				 * in queue and waits for the new function to
+				 * be evaluated. */
+				if (lua_isfunction(L, 1)) {
+					pthread_mutex_lock(&pool->mutex);
+					push_task(pool, t);
+					pthread_cond_signal(&pool->new_job);
+					pthread_mutex_unlock(&pool->mutex);
+				} else {
+					lua_stackdump(L);
+					lua_close(L);
+					free(t);
+				}
+			}
 		}
 	}
 	return NULL;
@@ -138,10 +162,14 @@ static int copy_function (lua_State *src, lua_State *dst, int index) {
 
 static void copy_stack(lua_State *src, lua_State *dst) {
 	int src_top, i, type;
-	src_top = lua_gettop(src);
+	size_t len;
+	const char *str;
+
 	if ( ! lua_isfunction(src, 1)) {
 		luaL_error(src, "Argument 1 must be a function. Was %s", lua_typename(src, 1));
 	}
+
+	src_top = lua_gettop(src);
 	for (i = 1; i <= src_top; i++) {
 		type = lua_type(src, i);
 		log_debug("Copying %s (%d)", lua_typename(src, type), i);
@@ -149,18 +177,22 @@ static void copy_stack(lua_State *src, lua_State *dst) {
 		case LUA_TFUNCTION:
 			copy_function(src, dst, i);
 			break;
-		case LUA_TTHREAD:
-			lua_pushnil(dst);
-			break;
 		case LUA_TNUMBER:
 			lua_pushnumber(dst, lua_tonumber(src, i));
 			break;
-		case LUA_TTABLE:
-			lua_pushnil(dst);
-			break;
 		case LUA_TBOOLEAN:
+			lua_pushboolean(dst, lua_toboolean(src, i));
 			break;
 		case LUA_TNIL:
+			lua_pushnil(dst);
+			break;
+		case LUA_TNONE:
+			break;
+		case LUA_TSTRING:
+			len = lua_objlen(src, i);
+			str = lua_tolstring(src, i, &len);
+			lua_pushlstring(dst, str, len);
+			break;
 		default:
 			lua_pushnil(dst);
 			log_debug("type: %s", lua_typename(src, type));
@@ -174,6 +206,7 @@ int spawn(struct thread_pool *pool, lua_State *parent) {
 	pthread_mutex_lock(&pool->mutex);
 
 	task->L = luaL_newstate();
+	task->is_loaded = 0;
 	luaL_openlibs(task->L);
 	luaopen_blocks(task->L);
 
