@@ -7,7 +7,7 @@
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-
+#include <stdio.h>
 #include <unistd.h>
 
 #include "log.h"
@@ -33,7 +33,6 @@ static int l_spawn(lua_State *L) {
 
 	/* Return reference to spawned task's mailbox */
 	mailbox_ref = lua_newuserdata(L, sizeof(mailbox_ref_t));
-	log_debug("Spawning from %p", L);
 	mailbox_ref->mailbox = child_mailbox;
 	luaL_getmetatable(L, MAILBOX_REF_TYPE_NAME);
 	lua_setmetatable(L, -2);
@@ -63,6 +62,17 @@ static int l_send(lua_State *L) {
 	lua_pushboolean(L, 1);
 	return 1;
 }
+static int l_mailbox_tostring(lua_State *L) {
+	luaL_Buffer buf;
+	char id[18];
+	luaL_buffinit(L, &buf);
+	luaL_addstring(&buf, MAILBOX_TYPE_NAME);
+	luaL_addstring(&buf, ": ");
+	snprintf(id, 16, "%p", mailbox_get(L));
+	luaL_addstring(&buf, id);
+	luaL_pushresult(&buf);
+	return 1;
+}
 
 static const luaL_reg blocks_functions[] = {
 		{"spawn", l_spawn},
@@ -89,6 +99,13 @@ LUALIB_API int luaopen_blocks(lua_State *L) {
 	lua_pushstring(L, "__metadata");
 	lua_pushstring(L, "restricted");
 	lua_settable(L, -3);
+	lua_pushstring(L, "__type");
+	lua_pushstring(L, MAILBOX_REF_TYPE_NAME);
+	lua_settable(L, -3);
+	lua_pushstring(L, "__tostring");
+	lua_pushcfunction(L, l_mailbox_tostring);
+	lua_settable(L, -3);
+
 	lua_settop(L, 0);
 
 	/* Register mail box per Lua state */

@@ -11,6 +11,7 @@ local first_child = blocks.spawn(
         return f
     end,
     10)
+print (first_child)
 first_child:send('hello')
 io.read()
     
