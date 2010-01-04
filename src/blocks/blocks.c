@@ -28,11 +28,13 @@ static int l_blocks_init(lua_State *L) {
 
 static int l_spawn(lua_State *L) {
 	mailbox_ref_t *mailbox_ref;
-	spawn(pool, L);
+	mailbox_t *child_mailbox;
+	child_mailbox = spawn(pool, L);
 
 	/* Return reference to spawned task's mailbox */
 	mailbox_ref = lua_newuserdata(L, sizeof(mailbox_ref_t));
-	mailbox_ref->mailbox = mailbox_get(L);
+	log_debug("Spawning from %p", L);
+	mailbox_ref->mailbox = child_mailbox;
 	luaL_getmetatable(L, MAILBOX_REF_TYPE_NAME);
 	lua_setmetatable(L, -2);
 
@@ -52,10 +54,11 @@ static int l_receive(lua_State *L) {
 }
 
 static int l_send(lua_State *L) {
-	mailbox_t *recepient, *sender;
+	mailbox_ref_t *recepient;
+	mailbox_t *sender;
 	recepient = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
 	sender = mailbox_get(L);
-	log_debug("Sending message from 0x%x to 0x%x", (int)sender, (int)recepient);
+	log_debug("Sending message from %p to %p", sender, recepient->mailbox);
 
 	lua_pushboolean(L, 1);
 	return 1;
@@ -86,10 +89,9 @@ LUALIB_API int luaopen_blocks(lua_State *L) {
 	lua_pushstring(L, "__metadata");
 	lua_pushstring(L, "restricted");
 	lua_settable(L, -3);
+	lua_settop(L, 0);
 
 	/* Register mail box per Lua state */
 	mailbox = mailbox_init(L);
-
-	lua_settop(L, 0);
 	return 0;
 }

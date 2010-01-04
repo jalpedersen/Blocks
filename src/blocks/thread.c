@@ -167,7 +167,6 @@ static void copy_stack(lua_State *src, lua_State *dst) {
 	src_top = lua_gettop(src);
 	for (i = 1; i <= src_top; i++) {
 		type = lua_type(src, i);
-		log_debug("Copying %s (%d)", lua_typename(src, type), i);
 		switch (type) {
 		case LUA_TFUNCTION:
 			copy_function(src, dst, i);
@@ -196,7 +195,7 @@ static void copy_stack(lua_State *src, lua_State *dst) {
 	}
 }
 
-int spawn(struct thread_pool *pool, lua_State *parent) {
+mailbox_t *spawn(struct thread_pool *pool, lua_State *parent) {
 	struct task *task = malloc(sizeof(struct task));
 
 	task->L = luaL_newstate();
@@ -214,7 +213,9 @@ int spawn(struct thread_pool *pool, lua_State *parent) {
 
 	/* Remove spawned function and arguments from parent stack */
 	lua_settop(parent, 0);
-	return 0;
+
+	/* Return mail box created in luaopen_blocks function */
+	return mailbox_get(task->L);
 }
 
 thread_pool_t *threads_init(lua_State *L, int size) {
