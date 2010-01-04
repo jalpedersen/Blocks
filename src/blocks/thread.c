@@ -70,8 +70,8 @@ static void *worker(void *args) {
 		}
 		pthread_mutex_unlock(&pool->mutex);
 		if (t != NULL) {
+			L = t->L;
 			if ( ! t->is_loaded) {
-				L = t->L;
 				/* Evaluate function that evaluates the real function */
 				lua_pushvalue(L, 1);
 				/* Load function from string dump */
