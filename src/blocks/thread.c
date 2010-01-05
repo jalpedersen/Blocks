@@ -136,7 +136,7 @@ static int function_writer (lua_State *L, const void* b, size_t size, void* B) {
 }
 
 static int copy_function (lua_State *src, lua_State *dst, int index) {
-  luaL_Buffer b, b2;
+  luaL_Buffer b;
   const char *fn_dump;
   size_t fn_size;
   lua_pushvalue(src, index);

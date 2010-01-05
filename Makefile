@@ -1,8 +1,11 @@
+LUA_LIB=lua
+SHARED_OPTION=bundle
+#SHARED_OPTION=shared
 CC=gcc
-CFLAGS=-std=c99 -Werror -pedantic -fpic -ggdb -Os 
-LDFLAGS=-shared -fpic -llua -lpthread
-INCLUDE=-I/usr/local/include
-LIBS=-L/usr/local/lib
+CFLAGS=-std=c99 -Werror -pedantic -fPIC -ggdb -Os
+LDFLAGS=-$(SHARED_OPTION) -fPIC -l$(LUA_LIB) -lpthread
+INCLUDE=-I/usr/local/include -I/opt/local/include -I/usr/include/lua5.1
+LIBS=-L/usr/local/lib -L/usr/lib -L/opt/local/lib
 SOURCES=src/blocks/blocks.c src/blocks/thread.c src/blocks/lua_util.c src/blocks/mailbox.c
 OBJECTS=$(SOURCES:.c=.o)
 LIBRARY=blocks.so

@@ -57,21 +57,30 @@ static int l_send(lua_State *L) {
 	mailbox_t *sender;
 	recepient = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
 	sender = mailbox_get(L);
-	log_debug("Sending message from %p to %p", sender, recepient->mailbox);
+	log_debug("Sending message from %p to %p", (void*)sender, (void*)recepient->mailbox);
 
 	lua_pushboolean(L, 1);
 	return 1;
 }
 static int l_mailbox_tostring(lua_State *L) {
 	luaL_Buffer buf;
+	mailbox_ref_t *ref;
 	char id[18];
+	ref = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
 	luaL_buffinit(L, &buf);
 	luaL_addstring(&buf, MAILBOX_TYPE_NAME);
 	luaL_addstring(&buf, ": ");
-	snprintf(id, 16, "%p", mailbox_get(L));
+	snprintf(id, 16, "%p", (void*)ref->mailbox);
 	luaL_addstring(&buf, id);
 	luaL_pushresult(&buf);
 	return 1;
+}
+
+static int l_mailbox_ref_destroy(lua_State *L) {
+	mailbox_ref_t *ref;
+	ref = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
+	log_debug("Removing reference to %p", (void*)ref->mailbox);
+	return 0;
 }
 
 static const luaL_reg blocks_functions[] = {
@@ -81,9 +90,6 @@ static const luaL_reg blocks_functions[] = {
 		{ NULL, NULL}
 };
 
-static int l_process_tostring(lua_State *L) {
-	lua_pushstring(L, "testing");
-}
 LUALIB_API int luaopen_blocks(lua_State *L) {
 	mailbox_t *mailbox;
 	luaL_register(L, "blocks", blocks_functions);
@@ -104,6 +110,9 @@ LUALIB_API int luaopen_blocks(lua_State *L) {
 	lua_settable(L, -3);
 	lua_pushstring(L, "__tostring");
 	lua_pushcfunction(L, l_mailbox_tostring);
+	lua_settable(L, -3);
+	lua_pushstring(L, "__gc");
+	lua_pushcfunction(L, l_mailbox_ref_destroy);
 	lua_settable(L, -3);
 
 	lua_settop(L, 0);
