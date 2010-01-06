@@ -1,6 +1,8 @@
 LUA_LIB=lua
+#LUA_LIB=lua5.1
 SHARED_OPTION=bundle
 #SHARED_OPTION=shared
+
 CC=gcc
 CFLAGS=-std=c99 -Werror -pedantic -fPIC -ggdb -Os
 LDFLAGS=-$(SHARED_OPTION) -fPIC -l$(LUA_LIB) -lpthread

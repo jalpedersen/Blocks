@@ -17,11 +17,15 @@ struct message {
 	struct message *head;
 	struct message *tail;
 };
-
+enum mailbox_state {
+	ALIVE,
+	DEAD
+};
 struct mailbox {
 	pthread_mutex_t mutex;
 	pthread_cond_t new_message;
 	struct message *message;
+	enum mailbox_state state;
 };
 
 mailbox_t *mailbox_init(lua_State *L) {
@@ -33,6 +37,7 @@ mailbox_t *mailbox_init(lua_State *L) {
 
 	pthread_cond_init(&mailbox->new_message, NULL);
 	pthread_mutex_init(&mailbox->mutex, NULL);
+	mailbox->state = ALIVE;
 	mailbox->message = NULL;
 
 	return mailbox;
@@ -48,8 +53,19 @@ mailbox_t *mailbox_get(lua_State *L) {
 }
 
 void mailbox_destroy(mailbox_t *mailbox) {
-	pthread_cond_destroy(&mailbox->new_message);
-	pthread_mutex_destroy(&mailbox->mutex);
+	int do_cleanup = 0;
+	pthread_mutex_lock(&mailbox->mutex);
+	if (mailbox->state == DEAD) {
+		do_cleanup = 1;
+	} else {
+		mailbox->state = DEAD;
+	}
+	pthread_mutex_unlock(&mailbox->mutex);
+	if (do_cleanup) {
+		/* Remove messages as well*/
+		pthread_cond_destroy(&mailbox->new_message);
+		pthread_mutex_destroy(&mailbox->mutex);
+	}
 }
 
 void mailbox_send(mailbox_t *mailbox, void *message);

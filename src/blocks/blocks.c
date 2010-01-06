@@ -79,7 +79,7 @@ static int l_mailbox_tostring(lua_State *L) {
 static int l_mailbox_ref_destroy(lua_State *L) {
 	mailbox_ref_t *ref;
 	ref = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
-	log_debug("Removing reference to %p", (void*)ref->mailbox);
+	mailbox_destroy(ref->mailbox);
 	return 0;
 }
 

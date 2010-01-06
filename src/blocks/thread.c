@@ -55,6 +55,13 @@ static struct task *push_task(thread_pool_t *pool, struct task *task) {
 	return head;
 }
 
+static void task_destroy(struct task *t) {
+	mailbox_destroy(mailbox_get(t->L));
+	lua_close(t->L);
+	free(t);
+
+}
+
 static void *worker(void *args) {
 	lua_State *L;
 	struct task *t;
@@ -86,8 +93,7 @@ static void *worker(void *args) {
 			/* If function hasn't left anything on the
 			 * stack it is done and we close it's state */
 			if (lua_gettop(L) == 0) {
-				lua_close(L);
-				free(t);
+				task_destroy(t);
 			} else {
 				/* if a function is returned, task goes back
 				 * in queue and waits for the new function to
@@ -99,8 +105,7 @@ static void *worker(void *args) {
 					pthread_mutex_unlock(&pool->mutex);
 				} else {
 					lua_stackdump(L);
-					lua_close(L);
-					free(t);
+					task_destroy(t);
 				}
 			}
 		}
@@ -196,12 +201,14 @@ static void copy_stack(lua_State *src, lua_State *dst) {
 }
 
 mailbox_t *spawn(struct thread_pool *pool, lua_State *parent) {
+	mailbox_t *mailbox;
 	struct task *task = malloc(sizeof(struct task));
 
 	task->L = luaL_newstate();
 	task->is_loaded = 0;
 	luaL_openlibs(task->L);
 	luaopen_blocks(task->L);
+	mailbox = mailbox_get(task->L);
 
 	/* Copy values from parent */
 	copy_stack(parent, task->L);
@@ -215,7 +222,7 @@ mailbox_t *spawn(struct thread_pool *pool, lua_State *parent) {
 	lua_settop(parent, 0);
 
 	/* Return mail box created in luaopen_blocks function */
-	return mailbox_get(task->L);
+	return mailbox;
 }
 
 thread_pool_t *threads_init(lua_State *L, int size) {
