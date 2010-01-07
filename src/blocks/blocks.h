@@ -11,5 +11,4 @@
 
 LUALIB_API int luaopen_blocks(lua_State *L);
 
-
 #endif /* BLOCKS_H_ */

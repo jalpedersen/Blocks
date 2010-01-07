@@ -12,7 +12,7 @@
 
 #include "log.h"
 #include "lua_util.h"
-#include "thread.h"
+#include "process.h"
 #include "blocks.h"
 #include "mailbox.h"
 
@@ -21,7 +21,7 @@ static thread_pool_t *pool = NULL;
 
 static int l_blocks_init(lua_State *L) {
 	if (pool == NULL) {
-		pool = threads_init(L, 5);
+		pool = threadpool_init(L, 5);
 	}
 	return 0;
 }
@@ -29,7 +29,7 @@ static int l_blocks_init(lua_State *L) {
 static int l_spawn(lua_State *L) {
 	mailbox_ref_t *mailbox_ref;
 	mailbox_t *child_mailbox;
-	child_mailbox = spawn(pool, L);
+	child_mailbox = process_spawn(pool, L);
 
 	/* Return reference to spawned task's mailbox */
 	mailbox_ref = lua_newuserdata(L, sizeof(mailbox_ref_t));

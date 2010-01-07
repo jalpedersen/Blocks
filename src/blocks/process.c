@@ -1,5 +1,5 @@
 /*
- * thread.c
+ * process.c
  *
  *  Created on: Jan 2, 2010
  *      Author: jalp
@@ -11,7 +11,7 @@
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-#include "thread.h"
+#include "process.h"
 #include "log.h"
 #include "lua_util.h"
 #include "blocks.h"
@@ -22,11 +22,16 @@ struct task {
 	struct task *next;
 };
 
+struct thread_list {
+	pthread_t *thread;
+	struct thread_list *next;
+};
 struct thread_pool {
 	int size;
 	pthread_cond_t new_job;
 	pthread_mutex_t mutex;
-	pthread_t **threads;
+	struct thread_list *head;
+	struct thread_list *end;
 	struct task *task_queue;
 };
 
@@ -200,7 +205,7 @@ static void copy_stack(lua_State *src, lua_State *dst) {
 	}
 }
 
-mailbox_t *spawn(struct thread_pool *pool, lua_State *parent) {
+mailbox_t *process_spawn(struct thread_pool *pool, lua_State *parent) {
 	mailbox_t *mailbox;
 	struct task *task = malloc(sizeof(struct task));
 
@@ -225,17 +230,35 @@ mailbox_t *spawn(struct thread_pool *pool, lua_State *parent) {
 	return mailbox;
 }
 
-thread_pool_t *threads_init(lua_State *L, int size) {
-	int i;
+thread_pool_t *threadpool_init(lua_State *L, int size) {
 	struct thread_pool *pool = malloc(sizeof(struct thread_pool));
 	pthread_mutex_init(&pool->mutex, NULL);
 	pthread_cond_init(&pool->new_job, NULL);
-	pool->threads = malloc(sizeof(pthread_t*) * size);
 	pool->task_queue = NULL;
-	for (i = 0; i < size; i++) {
-		pool->threads[i] = malloc(sizeof(pthread_t));
-		pthread_create(pool->threads[i], NULL, worker, pool);
-	}
+	pool->head = NULL;
+	pool->end = NULL;
+	threadpool_extend(pool, size);
 	return pool;
 }
 
+void threadpool_extend(thread_pool_t *pool, int size) {
+	int i;
+	pthread_t *thread;
+
+	struct thread_list *prev_thread, *thread_item;
+	for (i = 0; i < size; i++) {
+		thread = malloc(sizeof(pthread_t));
+		thread_item = malloc(sizeof(struct thread_list));
+		thread_item->thread = thread;
+		thread_item->next = NULL;
+		if (pool->head == NULL) {
+			pool->head = thread_item;
+		} else {
+			prev_thread->next = thread_item;
+		}
+		prev_thread = thread_item;
+		pthread_create(thread, NULL, worker, pool);
+	}
+	pool->end = prev_thread;
+
+}
