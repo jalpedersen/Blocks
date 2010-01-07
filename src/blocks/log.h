@@ -9,11 +9,14 @@
 #define LOG_H_
 #include <stdio.h>
 
-#define __log(file,...){fprintf(file,  "[%s:%d]: ", __FILE__, __LINE__); fprintf(file, __VA_ARGS__);fprintf(file, "\n");fflush(file);}
+#define __log(file,level,...){fprintf(file,  "[%s: %s:%d]: ", level, __FILE__, __LINE__); fprintf(file, __VA_ARGS__);fprintf(file, "\n");fflush(file);}
 
-#define log_debug(...){__log(stdout, __VA_ARGS__);}
+#define log_debug(...){__log(stdout, "DEBUG", __VA_ARGS__);}
 
-#define log_error(...){__log(stderr, __VA_ARGS__);}
+#define log_info(...){__log(stdout, "INFO", __VA_ARGS__);}
 
+#define log_warn(...){__log(stdout, "WARN", __VA_ARGS__);}
+
+#define log_error(...){__log(stderr, "ERROR", __VA_ARGS__);}
 
 #endif /* LOG_H_ */
