@@ -72,7 +72,6 @@ static void *worker(void *args) {
 	struct task *t;
 	struct thread_pool *pool = args;
 
-	pthread_detach(pthread_self());
 	while (1) {
 		pthread_mutex_lock(&pool->mutex);
 		t = pop_task(pool);
@@ -91,9 +90,13 @@ static void *worker(void *args) {
 				/* Replace loader function with real function */
 				lua_replace(L, 1);
 				t->is_loaded = 1;
+				/* Evaluate real function */
+				lua_eval(L);
+			} else {
+				/* Pop message from queue and pass the values to the
+				 * function left on the stack by the previous evaluation */
+				lua_eval(L);
 			}
-			/* Evaluate real function */
-			lua_eval(L);
 
 			/* If function hasn't left anything on the
 			 * stack it is done and we close it's state */
@@ -244,8 +247,14 @@ thread_pool_t *threadpool_init(lua_State *L, int size) {
 void threadpool_extend(thread_pool_t *pool, int size) {
 	int i;
 	pthread_t *thread;
-
+	pthread_attr_t thread_attr;
 	struct thread_list *prev_thread, *thread_item;
+
+	/* Default stack size is 512k */
+	pthread_attr_init(&thread_attr);
+	pthread_attr_setstacksize(&thread_attr, 512 * 1024);
+	pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
+	prev_thread = pool->end;
 	for (i = 0; i < size; i++) {
 		thread = malloc(sizeof(pthread_t));
 		thread_item = malloc(sizeof(struct thread_list));
@@ -257,7 +266,7 @@ void threadpool_extend(thread_pool_t *pool, int size) {
 			prev_thread->next = thread_item;
 		}
 		prev_thread = thread_item;
-		pthread_create(thread, NULL, worker, pool);
+		pthread_create(thread, &thread_attr, worker, pool);
 	}
 	pool->end = prev_thread;
 

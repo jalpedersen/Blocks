@@ -16,12 +16,19 @@
 #include "blocks.h"
 #include "mailbox.h"
 
-
 static thread_pool_t *pool = NULL;
 
 static int l_blocks_init(lua_State *L) {
 	if (pool == NULL) {
 		pool = threadpool_init(L, 5);
+	}
+	return 0;
+}
+
+static int l_pool_extend(lua_State *L) {
+	int size = luaL_checkinteger(L, 1);
+	if (pool != NULL) {
+		threadpool_extend(pool, size);
 	}
 	return 0;
 }
@@ -87,6 +94,7 @@ static const luaL_reg blocks_functions[] = {
 		{"spawn", l_spawn},
 		{"sleep", l_sleep},
 		{"receive", l_receive},
+		{"extend_pool", l_pool_extend},
 		{ NULL, NULL}
 };
 
