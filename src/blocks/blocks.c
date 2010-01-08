@@ -53,7 +53,7 @@ static int l_sleep(lua_State *L) {
 }
 
 static int l_receive(lua_State *L) {
-	mailbox_t *mailbox;
+	mailbox_ref_t *mailbox;
 	mailbox = mailbox_get(L);
 
 	return 0;
@@ -61,7 +61,7 @@ static int l_receive(lua_State *L) {
 
 static int l_send(lua_State *L) {
 	mailbox_ref_t *recepient;
-	mailbox_t *sender;
+	mailbox_ref_t *sender;
 	recepient = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
 	sender = mailbox_get(L);
 	log_debug("Sending message from %p to %p", (void*)sender, (void*)recepient->mailbox);
@@ -86,7 +86,7 @@ static int l_mailbox_tostring(lua_State *L) {
 static int l_mailbox_ref_destroy(lua_State *L) {
 	mailbox_ref_t *ref;
 	ref = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
-	mailbox_destroy(ref->mailbox);
+	mailbox_destroy(ref);
 	return 0;
 }
 

@@ -216,7 +216,7 @@ mailbox_t *process_spawn(struct thread_pool *pool, lua_State *parent) {
 	task->is_loaded = 0;
 	luaL_openlibs(task->L);
 	luaopen_blocks(task->L);
-	mailbox = mailbox_get(task->L);
+	mailbox = mailbox_get(task->L)->mailbox;
 
 	/* Copy values from parent */
 	copy_stack(parent, task->L);

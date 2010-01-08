@@ -21,14 +21,12 @@ typedef struct mailbox_ref {
 
 mailbox_t *mailbox_init(lua_State *L);
 
-mailbox_t *mailbox_get(lua_State *L);
+mailbox_ref_t *mailbox_get(lua_State *L);
 
-void mailbox_destroy(mailbox_t *mailbox);
+void mailbox_destroy(mailbox_ref_t *mailbox);
 
-void mailbox_destroy(mailbox_t *mailbox);
+void mailbox_send(mailbox_ref_t *mailbox, void *message);
 
-void mailbox_send(mailbox_t *mailbox, void *message);
-
-void *mailbox_receive(mailbox_t *mailbox);
+void *mailbox_receive(mailbox_ref_t *mailbox);
 
 #endif /* MAILBOX_H_ */
