@@ -12,7 +12,7 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #include "process.h"
-#include "log.h"
+#include "../util/log.h"
 #include "lua_util.h"
 #include "blocks.h"
 

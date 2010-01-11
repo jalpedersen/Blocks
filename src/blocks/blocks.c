@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "log.h"
+#include "../util/log.h"
 #include "lua_util.h"
 #include "process.h"
 #include "blocks.h"

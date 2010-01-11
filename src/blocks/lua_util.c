@@ -6,7 +6,7 @@
  */
 
 #include "lua_util.h"
-#include "log.h"
+#include "../util/log.h"
 
 static int traceback (lua_State *L) {
 	if ( ! lua_isstring(L, 1)) {
