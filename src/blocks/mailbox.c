@@ -7,8 +7,8 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include "mailbox.h"
-#include "lua_util.h"
-#include "../util/log.h"
+#include <util/lua_util.h>
+#include <util/log.h>
 
 const char mailbox_key = 'M';
 

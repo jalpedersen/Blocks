@@ -29,12 +29,12 @@ static int traceback (lua_State *L) {
 }
 int lua_eval(lua_State *L) {
 	return lua_eval_part(L,
-						 lua_gettop(L)-1, /* don't include function */
-						 LUA_MULTRET);
+			     lua_gettop(L)-1, /* don't include function */
+			     LUA_MULTRET);
 }
 int lua_eval_part(lua_State *L, int narg, int nres) {
 	int ret, error_index;
-
+	
 	error_index = lua_gettop(L) - narg;
 	lua_pushcfunction(L, traceback);
 	lua_insert(L, error_index);

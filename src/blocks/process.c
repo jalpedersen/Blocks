@@ -11,9 +11,9 @@
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+#include <util/log.h>
+#include <util/lua_util.h>
 #include "process.h"
-#include "../util/log.h"
-#include "lua_util.h"
 #include "blocks.h"
 
 struct task {

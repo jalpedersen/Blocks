@@ -10,8 +10,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "../util/log.h"
-#include "lua_util.h"
+#include <util/log.h>
+#include <util/lua_util.h>
 #include "process.h"
 #include "blocks.h"
 #include "mailbox.h"
