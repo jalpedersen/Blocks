@@ -1,0 +1,10 @@
+K 10
+svn:ignore
+V 63
+Makefile.in
+Makefile
+gc-libgcrypt.gcno
+gc-libgcrypt.gcda
+.deps
+
+END

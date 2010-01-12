@@ -1,0 +1,17 @@
+K 25
+svn:wc:ra_dav:version-url
+V 49
+/svn/!svn/ver/9493/libmicrohttpd/src/daemon/https
+END
+gnutls.h
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/svn/!svn/ver/8259/libmicrohttpd/src/daemon/https/gnutls.h
+END
+Makefile.am
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svn/!svn/ver/7892/libmicrohttpd/src/daemon/https/Makefile.am
+END

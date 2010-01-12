@@ -1,0 +1,527 @@
+K 25
+svn:wc:ra_dav:version-url
+V 53
+/svn/!svn/ver/9493/libmicrohttpd/src/daemon/https/tls
+END
+gnutls_cert.h
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/!svn/ver/7906/libmicrohttpd/src/daemon/https/tls/gnutls_cert.h
+END
+gnutls_extensions.h
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_extensions.h
+END
+gnutls_global.h
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/8346/libmicrohttpd/src/daemon/https/tls/gnutls_global.h
+END
+gnutls_x509.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/gnutls_x509.c
+END
+gnutls_auth.h
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_auth.h
+END
+gnutls_str.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/7931/libmicrohttpd/src/daemon/https/tls/gnutls_str.c
+END
+gnutls_datum.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/!svn/ver/7906/libmicrohttpd/src/daemon/https/tls/gnutls_datum.c
+END
+auth_rsa.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/auth_rsa.c
+END
+gnutls_x509.h
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_x509.h
+END
+gnutls_str.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/7906/libmicrohttpd/src/daemon/https/tls/gnutls_str.h
+END
+gnutls_mem.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/7906/libmicrohttpd/src/daemon/https/tls/gnutls_mem.c
+END
+gnutls_datum.h
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/!svn/ver/8177/libmicrohttpd/src/daemon/https/tls/gnutls_datum.h
+END
+ext_cert_type.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/ext_cert_type.c
+END
+gnutls_sig.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/gnutls_sig.c
+END
+gnutls_mem.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/7936/libmicrohttpd/src/daemon/https/tls/gnutls_mem.h
+END
+gnutls_handshake.c
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svn/!svn/ver/8205/libmicrohttpd/src/daemon/https/tls/gnutls_handshake.c
+END
+ext_cert_type.h
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/ext_cert_type.h
+END
+gnutls_sig.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/7909/libmicrohttpd/src/daemon/https/tls/gnutls_sig.h
+END
+gnutls_asn1_tab.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_asn1_tab.c
+END
+libgnutls-config
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/7305/libmicrohttpd/src/daemon/https/tls/libgnutls-config
+END
+debug.c
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svn/!svn/ver/7931/libmicrohttpd/src/daemon/https/tls/debug.c
+END
+gnutls_handshake.h
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_handshake.h
+END
+gnutls_num.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_num.c
+END
+debug.h
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svn/!svn/ver/7906/libmicrohttpd/src/daemon/https/tls/debug.h
+END
+gnutls_num.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/7936/libmicrohttpd/src/daemon/https/tls/gnutls_num.h
+END
+libgnutls.vers
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/!svn/ver/7305/libmicrohttpd/src/daemon/https/tls/libgnutls.vers
+END
+gnutls_dh_primes.c
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_dh_primes.c
+END
+gnutls_ui.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/7931/libmicrohttpd/src/daemon/https/tls/gnutls_ui.c
+END
+gnutls.asn
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/!svn/ver/7305/libmicrohttpd/src/daemon/https/tls/gnutls.asn
+END
+gnutls_constate.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/gnutls_constate.c
+END
+memmem.c
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/memmem.c
+END
+gnutls_kx.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/gnutls_kx.c
+END
+gnutls_cipher_int.c
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/!svn/ver/7943/libmicrohttpd/src/daemon/https/tls/gnutls_cipher_int.c
+END
+gnutls_mpi.c
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/7903/libmicrohttpd/src/daemon/https/tls/gnutls_mpi.c
+END
+gnutls_constate.h
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_constate.h
+END
+gnutls_rsa_export.c
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_rsa_export.c
+END
+gnutls_kx.h
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_kx.h
+END
+gnutls_cipher_int.h
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_cipher_int.h
+END
+gnutls_mpi.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/7936/libmicrohttpd/src/daemon/https/tls/gnutls_mpi.h
+END
+gnutls_rsa_export.h
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_rsa_export.h
+END
+gnutls_buffers.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/8340/libmicrohttpd/src/daemon/https/tls/gnutls_buffers.c
+END
+gnutls_hash_int.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_hash_int.c
+END
+gnutls_int.h
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/8271/libmicrohttpd/src/daemon/https/tls/gnutls_int.h
+END
+gnutls.pc
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svn/!svn/ver/7305/libmicrohttpd/src/daemon/https/tls/gnutls.pc
+END
+gnutls_buffers.h
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/7906/libmicrohttpd/src/daemon/https/tls/gnutls_buffers.h
+END
+gnutls_hash_int.h
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_hash_int.h
+END
+ext_max_record.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/ext_max_record.c
+END
+gnutls_alert.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_alert.c
+END
+gnutls_algorithms.c
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/gnutls_algorithms.c
+END
+gnutls_pk.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/gnutls_pk.c
+END
+auth_rsa_export.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/7772/libmicrohttpd/src/daemon/https/tls/auth_rsa_export.c
+END
+ext_max_record.h
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/ext_max_record.h
+END
+gnutls_record.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/gnutls_record.c
+END
+gnutls_algorithms.h
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/!svn/ver/7906/libmicrohttpd/src/daemon/https/tls/gnutls_algorithms.h
+END
+gnutls_pk.h
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/7938/libmicrohttpd/src/daemon/https/tls/gnutls_pk.h
+END
+gnutls_auth_int.h
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_auth_int.h
+END
+gnutls_state.c
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/gnutls_state.c
+END
+gnutls_priority.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/7936/libmicrohttpd/src/daemon/https/tls/gnutls_priority.c
+END
+auth_cert.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/7966/libmicrohttpd/src/daemon/https/tls/auth_cert.c
+END
+gnutls_record.h
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_record.h
+END
+auth_dhe.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/!svn/ver/7920/libmicrohttpd/src/daemon/https/tls/auth_dhe.c
+END
+gnutls_state.h
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_state.h
+END
+defines.h
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svn/!svn/ver/8345/libmicrohttpd/src/daemon/https/tls/defines.h
+END
+auth_cert.h
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/auth_cert.h
+END
+libgnutls.m4
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svn/!svn/ver/7305/libmicrohttpd/src/daemon/https/tls/libgnutls.m4
+END
+gnutls_supplemental.c
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/svn/!svn/ver/7906/libmicrohttpd/src/daemon/https/tls/gnutls_supplemental.c
+END
+gnutls_cipher.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/8149/libmicrohttpd/src/daemon/https/tls/gnutls_cipher.c
+END
+gnutls_errors.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/7931/libmicrohttpd/src/daemon/https/tls/gnutls_errors.c
+END
+gnutls_supplemental.h
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_supplemental.h
+END
+pkix.asn
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svn/!svn/ver/7305/libmicrohttpd/src/daemon/https/tls/pkix.asn
+END
+gnutls_cipher.h
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/gnutls_cipher.h
+END
+gnutls_errors.h
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/7936/libmicrohttpd/src/daemon/https/tls/gnutls_errors.h
+END
+x509_b64.c
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/x509_b64.c
+END
+str-two-way.h
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/str-two-way.h
+END
+pkix_asn1_tab.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/pkix_asn1_tab.c
+END
+auth_dh_common.c
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/7903/libmicrohttpd/src/daemon/https/tls/auth_dh_common.c
+END
+x509_b64.h
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svn/!svn/ver/7770/libmicrohttpd/src/daemon/https/tls/x509_b64.h
+END
+ext_server_name.c
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/ext_server_name.c
+END
+gnutls_dh.c
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_dh.c
+END
+Makefile.am
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/8217/libmicrohttpd/src/daemon/https/tls/Makefile.am
+END
+auth_dh_common.h
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svn/!svn/ver/7903/libmicrohttpd/src/daemon/https/tls/auth_dh_common.h
+END
+gnutls_cert.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/!svn/ver/7931/libmicrohttpd/src/daemon/https/tls/gnutls_cert.c
+END
+gnutls_extensions.c
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/gnutls_extensions.c
+END
+ext_server_name.h
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/ext_server_name.h
+END
+gnutls_global.c
+K 25
+svn:wc:ra_dav:version-url
+V 69
+/svn/!svn/ver/9493/libmicrohttpd/src/daemon/https/tls/gnutls_global.c
+END
+gnutls_dh.h
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/svn/!svn/ver/7743/libmicrohttpd/src/daemon/https/tls/gnutls_dh.h
+END
+gnutls_auth.c
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/svn/!svn/ver/8031/libmicrohttpd/src/daemon/https/tls/gnutls_auth.c
+END

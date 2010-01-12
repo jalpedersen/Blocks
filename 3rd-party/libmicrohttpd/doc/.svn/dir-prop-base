@@ -1,0 +1,15 @@
+K 10
+svn:ignore
+V 119
+tutorial
+microhttpd
+libmicrohttpdtutorial
+version.texi
+stamp-vti
+microhttpd.info
+mdate-sh
+Makefile.in
+Makefile
+doxygen
+
+END
