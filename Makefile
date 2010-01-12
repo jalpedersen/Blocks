@@ -1,7 +1,7 @@
 LUA_LIB=lua
-#LUA_LIB=lua5.1
+LUA_LIB=lua5.1
 SHARED_OPTION=bundle
-#SHARED_OPTION=shared
+SHARED_OPTION=shared
 
 CC=gcc
 CFLAGS=-std=c99 -Werror -pedantic -fPIC -ggdb -Os

@@ -9,9 +9,11 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/select.h>
+#include <stddef.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <microhttpd.h>
-
 #define PORT 8888
 
 int print_out_key(void *cls, enum MHD_ValueKind kind, const char *key,
