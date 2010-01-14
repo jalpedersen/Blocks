@@ -12,7 +12,10 @@ local first_child = blocks.spawn(
     end,
     10)
 print (first_child)
-first_child:send('hello')
+print (type(first_child))
+reply = first_child:send('hello')
+print (reply)
+print (type(reply))
 io.read()
     
         

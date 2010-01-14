@@ -12,15 +12,25 @@
 
 const char mailbox_key = 'M';
 
+enum message_state {
+        MSG_WAITING,
+        MSG_PROCESSING,
+        MSG_READY,
+        MSG_DEAD
+};
+
 struct message {
+        size_t msg_size;
 	void *message;
 	struct message *head;
 	struct message *tail;
+        enum message_state state;
 };
 enum mailbox_state {
 	ALIVE,
 	DEAD
 };
+
 struct mailbox {
 	pthread_mutex_t mutex;
 	pthread_cond_t new_message;
@@ -75,7 +85,7 @@ void mailbox_destroy(mailbox_ref_t *ref) {
 	}
 }
 
-void mailbox_send(mailbox_ref_t *mailbox, void *message);
+int mailbox_send(mailbox_ref_t *mailbox, void *message);
 
-void *mailbox_receive(mailbox_ref_t *mailbox);
+message_t *mailbox_receive(mailbox_ref_t *mailbox);
 

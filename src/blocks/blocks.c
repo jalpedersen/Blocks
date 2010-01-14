@@ -62,11 +62,20 @@ static int l_receive(lua_State *L) {
 static int l_send(lua_State *L) {
 	mailbox_ref_t *recepient;
 	mailbox_ref_t *sender;
+        message_ref_t *msg;
+
 	recepient = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
 	sender = mailbox_get(L);
-	log_debug("Sending message from %p to %p", (void*)sender, (void*)recepient->mailbox);
 
-	lua_pushboolean(L, 1);
+	log_debug("Sending message from %p to %p", 
+                  (void*)sender, (void*)recepient->mailbox);
+
+	/* Return reference to message */
+	msg = lua_newuserdata(L, sizeof(message_ref_t));
+	msg->message = NULL;
+	luaL_getmetatable(L, MESSAGE_REF_TYPE_NAME);
+	lua_setmetatable(L, -2);
+
 	return 1;
 }
 static int l_mailbox_tostring(lua_State *L) {
@@ -83,10 +92,31 @@ static int l_mailbox_tostring(lua_State *L) {
 	return 1;
 }
 
+static int l_message_tostring(lua_State *L) {
+	luaL_Buffer buf;
+	message_ref_t *ref;
+	char id[18];
+	ref = luaL_checkudata(L, 1, MESSAGE_REF_TYPE_NAME);
+	luaL_buffinit(L, &buf);
+	luaL_addstring(&buf, MESSAGE_TYPE_NAME);
+	luaL_addstring(&buf, ": ");
+	snprintf(id, 16, "%p", (void*)ref->message);
+	luaL_addstring(&buf, id);
+	luaL_pushresult(&buf);
+	return 1;
+}
+
 static int l_mailbox_ref_destroy(lua_State *L) {
 	mailbox_ref_t *ref;
 	ref = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
 	mailbox_destroy(ref);
+	return 0;
+}
+
+static int l_message_ref_destroy(lua_State *L) {
+	message_ref_t *ref;
+	ref = luaL_checkudata(L, 1, MESSAGE_REF_TYPE_NAME);
+
 	return 0;
 }
 
@@ -103,6 +133,7 @@ LUALIB_API int luaopen_blocks(lua_State *L) {
 	luaL_register(L, "blocks", blocks_functions);
 	l_blocks_init(L);
 
+        /* Mailbox reference meta-table */
 	luaL_newmetatable(L, MAILBOX_REF_TYPE_NAME);
 	lua_pushstring(L, "__index");
 	lua_pushvalue(L, -2);
@@ -122,6 +153,25 @@ LUALIB_API int luaopen_blocks(lua_State *L) {
 	lua_pushstring(L, "__gc");
 	lua_pushcfunction(L, l_mailbox_ref_destroy);
 	lua_settable(L, -3);
+
+        /* Message reference meta-table */
+	luaL_newmetatable(L, MESSAGE_REF_TYPE_NAME);
+	lua_pushstring(L, "__index");
+	lua_pushvalue(L, -2);
+	lua_settable(L, -3);
+	lua_pushstring(L, "__metadata");
+	lua_pushstring(L, "restricted");
+	lua_settable(L, -3);
+	lua_pushstring(L, "__type");
+	lua_pushstring(L, MESSAGE_REF_TYPE_NAME);
+	lua_settable(L, -3);
+	lua_pushstring(L, "__tostring");
+	lua_pushcfunction(L, l_message_tostring);
+	lua_settable(L, -3);
+	lua_pushstring(L, "__gc");
+	lua_pushcfunction(L, l_message_ref_destroy);
+	lua_settable(L, -3);
+
 
 	lua_settop(L, 0);
 
