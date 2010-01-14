@@ -1,5 +1,7 @@
 SHARED_OPTION=bundle
-SHARED_OPTION=shared
+#SHARED_OPTION=shared
+BLOCKS_EXTRA_LDFLAGS=-llua
+#EVA_EXTRA_LDFLAGS=-Wl,-E
 
 LUA_LOC=3rd-party/lua-5.1.4
 LUA_INC=$(LUA_LOC)/src
@@ -14,13 +16,13 @@ LIBS=-L/usr/local/lib -L/usr/lib -L/opt/local/lib
 
 BLOCKS_SOURCES=src/blocks/blocks.c src/blocks/process.c src/util/lua_util.c src/blocks/mailbox.c
 BLOCKS_OBJECTS=$(BLOCKS_SOURCES:.c=.o)
-BLOCKS_LDFLAGS=-$(SHARED_OPTION) -fPIC -lpthread
+BLOCKS_LDFLAGS=-$(SHARED_OPTION) -fPIC -lpthread $(BLOCKS_EXTRA_LDFLAGS)
 LIBRARY=blocks.so
 
 EVA_SOURCES=src/http/main.c src/util/lua_util.c
 EVA_OBJECTS=$(EVA_SOURCES:.c=.o)
 MAIN_EXEC=eva
-EVA_LDFLAGS=-lmicrohttpd -lm -ldl -Wl,-E
+EVA_LDFLAGS=-lmicrohttpd -lm -ldl $(EVA_EXTRA_LDFLAGS)
 
 
 all: $(BLOCKS_SOURCES) $(LIBRARY) $(EVA_SOURCES) $(MAIN_EXEC)
