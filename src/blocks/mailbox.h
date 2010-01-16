@@ -33,10 +33,10 @@ mailbox_ref_t *mailbox_get(lua_State *L);
 
 void mailbox_destroy(mailbox_ref_t *mailbox);
 
-/**
-   return 1 on success, 0 on failure
- */
-int mailbox_send(mailbox_ref_t *mailbox, void *message);
+void mailbox_message_destroy(message_ref_t *message);
+
+message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recepient,
+				        void *message, size_t size);
 
 message_t *mailbox_receive(mailbox_ref_t *mailbox);
 

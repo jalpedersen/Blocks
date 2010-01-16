@@ -62,7 +62,10 @@ static int l_receive(lua_State *L) {
 static int l_send(lua_State *L) {
 	mailbox_ref_t *recepient;
 	mailbox_ref_t *sender;
-        message_ref_t *msg;
+    message_ref_t *msg_ref;;
+    message_t *msg;
+    void *msg_content;
+    size_t msg_size;
 
 	recepient = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
 	sender = mailbox_get(L);
@@ -70,9 +73,10 @@ static int l_send(lua_State *L) {
 	log_debug("Sending message from %p to %p", 
                   (void*)sender, (void*)recepient->mailbox);
 
+	msg = mailbox_send(sender, recepient, msg_content, msg_size);
 	/* Return reference to message */
-	msg = lua_newuserdata(L, sizeof(message_ref_t));
-	msg->message = NULL;
+	msg_ref = lua_newuserdata(L, sizeof(message_ref_t));
+	msg_ref->message = msg;
 	luaL_getmetatable(L, MESSAGE_REF_TYPE_NAME);
 	lua_setmetatable(L, -2);
 
@@ -106,6 +110,13 @@ static int l_message_tostring(lua_State *L) {
 	return 1;
 }
 
+static int l_mailbox_message_get(lua_State *L) {
+	message_ref_t *ref;
+	ref = luaL_checkudata(L, 1, MESSAGE_REF_TYPE_NAME);
+	lua_pushstring(L, "hej");
+	return 1;
+}
+
 static int l_mailbox_ref_destroy(lua_State *L) {
 	mailbox_ref_t *ref;
 	ref = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
@@ -113,10 +124,10 @@ static int l_mailbox_ref_destroy(lua_State *L) {
 	return 0;
 }
 
-static int l_message_ref_destroy(lua_State *L) {
+static int l_mailbox_message_destroy(lua_State *L) {
 	message_ref_t *ref;
 	ref = luaL_checkudata(L, 1, MESSAGE_REF_TYPE_NAME);
-
+	mailbox_message_destroy(ref);
 	return 0;
 }
 
@@ -159,6 +170,9 @@ LUALIB_API int luaopen_blocks(lua_State *L) {
 	lua_pushstring(L, "__index");
 	lua_pushvalue(L, -2);
 	lua_settable(L, -3);
+	lua_pushstring(L, "get");
+	lua_pushcfunction(L, l_mailbox_message_get);
+	lua_settable(L, -3);
 	lua_pushstring(L, "__metadata");
 	lua_pushstring(L, "restricted");
 	lua_settable(L, -3);
@@ -169,7 +183,7 @@ LUALIB_API int luaopen_blocks(lua_State *L) {
 	lua_pushcfunction(L, l_message_tostring);
 	lua_settable(L, -3);
 	lua_pushstring(L, "__gc");
-	lua_pushcfunction(L, l_message_ref_destroy);
+	lua_pushcfunction(L, l_mailbox_message_destroy);
 	lua_settable(L, -3);
 
 
