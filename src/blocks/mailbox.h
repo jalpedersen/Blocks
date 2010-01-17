@@ -51,6 +51,8 @@ message_t *mailbox_receive(mailbox_ref_t *mailbox);
 
 message_t *mailbox_wait_for_reply(message_t *message, int timeout);
 
+int mailbox_message_reply(message_t *message);
+
 message_content_t *mailbox_message_get_content(message_t *message);
 
 #endif /* MAILBOX_H_ */

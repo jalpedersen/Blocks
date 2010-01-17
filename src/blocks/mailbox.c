@@ -109,6 +109,7 @@ message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recipient, message
 	msg->ref_count = 2; /*One for sender, one for recipient */
 	msg->mailbox = recipient;
 	msg->sender = sender;
+	msg->next = NULL;
 
 	pthread_mutex_lock(&rcpt->mutex);
 	if (rcpt->head == NULL) {
@@ -121,6 +122,15 @@ message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recipient, message
 	pthread_mutex_unlock(&rcpt->mutex);
 	process_notify_task(rcpt->task);
 	return msg;
+}
+
+int mailbox_message_reply(message_t *message) {
+	pthread_mutex_lock(&message->mutex);
+	message->state = MSG_READY;
+	pthread_cond_signal(&message->ready);
+	pthread_mutex_unlock(&message->mutex);
+
+	return 0;
 }
 
 message_t *mailbox_receive(mailbox_ref_t *mailbox_ref) {
@@ -138,18 +148,32 @@ message_t *mailbox_receive(mailbox_ref_t *mailbox_ref) {
 }
 
 message_t *mailbox_wait_for_reply(message_t *message, int timeout) {
+	log_debug("Waiting for message in %p:", (void*)message);
+	pthread_mutex_lock(&message->mutex);
+	while (message->state == MSG_WAITING ||
+			message->state == MSG_PROCESSING){
+		pthread_cond_wait(&message->ready, &message->mutex);
+	}
+	return message;
+	pthread_mutex_unlock(&message->mutex);
 
 }
+
+
 void mailbox_message_destroy(message_t *message) {
-	message_t *msg;
-	pthread_mutex_lock(&msg->mutex);
+	pthread_mutex_lock(&message->mutex);
 	message->ref_count--;
-	if (message->ref_count == 0 &&
-			(message->state == MSG_READY || msg->state == MSG_DEAD)) {
+	log_debug("Message %p ref count: %d ", (void*)message, message->ref_count);
+	if (message->ref_count <= 0 &&
+			(message->state == MSG_READY || message->state == MSG_DEAD)) {
 		log_debug("Destroying message %p", (void*)message);
+		pthread_mutex_unlock(&message->mutex);
+		pthread_cond_destroy(&message->ready);
+		pthread_mutex_destroy(&message->mutex);
 		free(message);
+	} else {
+		pthread_mutex_unlock(&message->mutex);
 	}
-	pthread_mutex_unlock(&msg->mutex);
 }
 
 void mailbox_set_task(mailbox_t *mailbox, task_t *task) {

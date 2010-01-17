@@ -20,11 +20,13 @@
 struct task {
 	lua_State *L;
 	short is_loaded;
-	struct task *next;
 	thread_pool_t *pool;
 	pthread_mutex_t mutex;
 };
-
+struct task_item {
+	struct task *task;
+	struct task_item *next;
+};
 struct thread_list {
 	pthread_t *thread;
 	struct thread_list *next;
@@ -35,37 +37,43 @@ struct thread_pool {
 	pthread_mutex_t mutex;
 	struct thread_list *head;
 	struct thread_list *end;
-	struct task *task_queue;
+	struct task_item *task_queue;
 };
 
 /**
  * Thread pool must be locked before calling get_task
  */
 static struct task *pop_task(thread_pool_t *pool) {
-	struct task *t = pool->task_queue;
+	struct task_item *t = pool->task_queue;
+	struct task *task = NULL;
 	if (t != NULL) {
+		task = t->task;
 		pool->task_queue = t->next;
+		free(t);
 	}
-	return t;
+	return task;
 }
 
 static struct task *push_task(thread_pool_t *pool, struct task *task) {
-	struct task *head = pool->task_queue;
-	task->next = NULL;
+	struct task_item *head = pool->task_queue;
+	struct task_item *new_item = malloc(sizeof(struct task_item));
+	new_item->next = NULL;
+	new_item->task = task;
 	if (head == NULL) {
-		pool->task_queue = task;
+		pool->task_queue = new_item;
 	} else {
 		while (head->next != NULL) {
 			head = head->next;
 		}
-		head->next = task;
+		head->next = new_item;
 	}
-	return head;
+	return task;
 }
 
 void process_notify_task(task_t *task) {
 	pthread_mutex_lock(&task->pool->mutex);
 	push_task(task->pool, task);
+	log_debug("Notified task");
 	pthread_cond_signal(&task->pool->new_job);
 	pthread_mutex_unlock(&task->pool->mutex);
 }
@@ -74,12 +82,14 @@ static void task_destroy(struct task *t) {
 	mailbox_destroy(mailbox_get(t->L));
 	lua_close(t->L);
 	pthread_mutex_destroy(&t->mutex);
+	log_debug("Freeing task: %p", (void*)t);
 	free(t);
 
 }
 
 static void *worker(void *args) {
 	lua_State *L;
+	int do_continue;
 	int argc;
 	message_t *msg;
 	mailbox_ref_t *mbox_ref;
@@ -115,29 +125,26 @@ static void *worker(void *args) {
 			mbox_ref = mailbox_get(L);
 			msg = mailbox_receive(mbox_ref);
 			if (msg != NULL) {
+				/* Push message onto Lua stack */
 				argc = lua_message_push(L, mailbox_message_get_content(msg));
-				mailbox_message_destroy(msg);
 			}
-			/* Push message onto Lua stack */
 			lua_eval(L);
 			/* Move values from Lua stack to reply */
-
-		}
-
-		/* If function hasn't left anything on the
-		 * stack it is done and we close it's state */
-		if (lua_gettop(L) == 0) {
-			task_destroy(t);
-		} else {
-			/* if a function is returned, task goes back
-			 * in queue and waits for the new function to
-			 * be evaluated. */
-			if ( ! lua_isfunction(L, 1)) {
-				lua_stackdump(L);
-				task_destroy(t);
+			mailbox_message_reply(msg);
+			if (msg != NULL) {
+				mailbox_message_destroy(msg);
 			}
+
 		}
-		pthread_mutex_lock(&t->mutex);
+		/* if a function is returned, task survives
+		 * */
+		do_continue = lua_isfunction(L, 1);
+		pthread_mutex_unlock(&t->mutex);
+		/* If function hasn't left a callback function on
+		 * stack it is done and we close it's state */
+		if ( ! do_continue ) {
+			task_destroy(t);
+		}
 	}
 	return NULL;
 }
@@ -242,7 +249,7 @@ mailbox_t *process_spawn(struct thread_pool *pool, lua_State *parent) {
 	luaopen_blocks(task->L);
 	mailbox = mailbox_get(task->L)->mailbox;
 	mailbox_set_task(mailbox, task);
-
+	log_debug("Initialised task: %p", (void*)task);
 	/* Copy values from parent */
 	copy_stack(parent, task->L);
 
