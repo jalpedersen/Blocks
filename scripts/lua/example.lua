@@ -1,6 +1,6 @@
 require 'blocks'
 
-local first_child = blocks.spawn(
+first_child = blocks.spawn(
     function(a)
         f = function() 
             print (a)
@@ -17,5 +17,3 @@ reply = first_child:send('hello')
 print (reply)
 print (type(reply))
 io.read()
-    
-        

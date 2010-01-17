@@ -17,4 +17,6 @@ void threadpool_extend(thread_pool_t *pool, int size);
 
 mailbox_t *process_spawn(struct thread_pool *pool, lua_State *L);
 
+void process_notify_task(task_t *task);
+
 #endif /* PROCESS_H_ */

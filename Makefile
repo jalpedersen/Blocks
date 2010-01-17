@@ -1,7 +1,7 @@
 SHARED_OPTION=bundle
-#SHARED_OPTION=shared
-BLOCKS_EXTRA_LDFLAGS=-llua
-#EVA_EXTRA_LDFLAGS=-Wl,-E
+SHARED_OPTION=shared
+#BLOCKS_EXTRA_LDFLAGS=-llua
+EVA_EXTRA_LDFLAGS=-Wl,-E
 
 LUA_LOC=3rd-party/lua-5.1.4
 LUA_INC=$(LUA_LOC)/src
@@ -14,7 +14,9 @@ INCLUDE=-Isrc -I$(LUA_INC) -I/usr/local/include -I/opt/local/include -I/usr/incl
 LIBS=-L/usr/local/lib -L/usr/lib -L/opt/local/lib
 
 
-BLOCKS_SOURCES=src/blocks/blocks.c src/blocks/process.c src/util/lua_util.c src/blocks/mailbox.c
+BLOCKS_SOURCES=src/blocks/blocks.c src/blocks/process.c
+BLOCKS_SOURCES+=src/util/lua_util.c src/blocks/mailbox.c
+BLOCKS_SOURCES+=src/blocks/lua_message.c
 BLOCKS_OBJECTS=$(BLOCKS_SOURCES:.c=.o)
 BLOCKS_LDFLAGS=-$(SHARED_OPTION) -fPIC -lpthread $(BLOCKS_EXTRA_LDFLAGS)
 LIBRARY=blocks.so

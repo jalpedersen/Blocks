@@ -15,11 +15,14 @@
 #include <util/lua_util.h>
 #include "process.h"
 #include "blocks.h"
+#include "lua_message.h"
 
 struct task {
 	lua_State *L;
 	short is_loaded;
 	struct task *next;
+	thread_pool_t *pool;
+	pthread_mutex_t mutex;
 };
 
 struct thread_list {
@@ -60,15 +63,26 @@ static struct task *push_task(thread_pool_t *pool, struct task *task) {
 	return head;
 }
 
+void process_notify_task(task_t *task) {
+	pthread_mutex_lock(&task->pool->mutex);
+	push_task(task->pool, task);
+	pthread_cond_signal(&task->pool->new_job);
+	pthread_mutex_unlock(&task->pool->mutex);
+}
+
 static void task_destroy(struct task *t) {
 	mailbox_destroy(mailbox_get(t->L));
 	lua_close(t->L);
+	pthread_mutex_destroy(&t->mutex);
 	free(t);
 
 }
 
 static void *worker(void *args) {
 	lua_State *L;
+	int argc;
+	message_t *msg;
+	mailbox_ref_t *mbox_ref;
 	struct task *t;
 	struct thread_pool *pool = args;
 
@@ -80,43 +94,50 @@ static void *worker(void *args) {
 			t = pop_task(pool);
 		}
 		pthread_mutex_unlock(&pool->mutex);
-		if (t != NULL) {
-			L = t->L;
-			if ( ! t->is_loaded) {
-				/* Evaluate function that evaluates the real function */
-				lua_pushvalue(L, 1);
-				/* Load function from string dump */
-				lua_eval_part(L, 0, 1);
-				/* Replace loader function with real function */
-				lua_replace(L, 1);
-				t->is_loaded = 1;
-				/* Evaluate real function */
-				lua_eval(L);
-			} else {
-				/* Pop message from queue and pass the values to the
-				 * function left on the stack by the previous evaluation */
-				lua_eval(L);
+		if (t == NULL) {
+			continue;
+		}
+		pthread_mutex_lock(&t->mutex);
+		L = t->L;
+		if ( ! t->is_loaded) {
+			/* Evaluate function that evaluates the real function */
+			lua_pushvalue(L, 1);
+			/* Load function from string dump */
+			lua_eval_part(L, 0, 1);
+			/* Replace loader function with real function */
+			lua_replace(L, 1);
+			t->is_loaded = 1;
+			/* Evaluate real function */
+			lua_eval(L);
+		} else {
+			/* Pop message from queue and pass the values to the
+			 * function left on the stack by the previous evaluation */
+			mbox_ref = mailbox_get(L);
+			msg = mailbox_receive(mbox_ref);
+			if (msg != NULL) {
+				argc = lua_message_push(L, mailbox_message_get_content(msg));
+				mailbox_message_destroy(msg);
 			}
+			/* Push message onto Lua stack */
+			lua_eval(L);
+			/* Move values from Lua stack to reply */
 
-			/* If function hasn't left anything on the
-			 * stack it is done and we close it's state */
-			if (lua_gettop(L) == 0) {
+		}
+
+		/* If function hasn't left anything on the
+		 * stack it is done and we close it's state */
+		if (lua_gettop(L) == 0) {
+			task_destroy(t);
+		} else {
+			/* if a function is returned, task goes back
+			 * in queue and waits for the new function to
+			 * be evaluated. */
+			if ( ! lua_isfunction(L, 1)) {
+				lua_stackdump(L);
 				task_destroy(t);
-			} else {
-				/* if a function is returned, task goes back
-				 * in queue and waits for the new function to
-				 * be evaluated. */
-				if (lua_isfunction(L, 1)) {
-					pthread_mutex_lock(&pool->mutex);
-					push_task(pool, t);
-					pthread_cond_signal(&pool->new_job);
-					pthread_mutex_unlock(&pool->mutex);
-				} else {
-					lua_stackdump(L);
-					task_destroy(t);
-				}
 			}
 		}
+		pthread_mutex_lock(&t->mutex);
 	}
 	return NULL;
 }
@@ -212,12 +233,15 @@ mailbox_t *process_spawn(struct thread_pool *pool, lua_State *parent) {
 	mailbox_t *mailbox;
 	struct task *task = malloc(sizeof(struct task));
 
+	pthread_mutex_init(&task->mutex, NULL);
 	task->L = luaL_newstate();
 	task->is_loaded = 0;
+	task->pool = pool;
 	// luaL_openlibs(task->L);
 	luaopen_base(task->L);
 	luaopen_blocks(task->L);
 	mailbox = mailbox_get(task->L)->mailbox;
+	mailbox_set_task(mailbox, task);
 
 	/* Copy values from parent */
 	copy_stack(parent, task->L);

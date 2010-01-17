@@ -15,6 +15,7 @@
 #include "process.h"
 #include "blocks.h"
 #include "mailbox.h"
+#include "lua_message.h"
 
 static thread_pool_t *pool = NULL;
 
@@ -52,34 +53,37 @@ static int l_sleep(lua_State *L) {
 	return 0;
 }
 
-static int l_receive(lua_State *L) {
+static int l_message_receive(lua_State *L) {
 	mailbox_ref_t *mailbox;
 	mailbox = mailbox_get(L);
 
 	return 0;
 }
 
-static int l_send(lua_State *L) {
-	mailbox_ref_t *recepient;
+static int l_message_send(lua_State *L) {
+	mailbox_ref_t *recipient;
 	mailbox_ref_t *sender;
-    message_ref_t *msg_ref;;
-    message_t *msg;
-    void *msg_content;
-    size_t msg_size;
+	message_ref_t *msg_ref;;
+	message_t *msg;
+	message_content_t *content;
 
-	recepient = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
+	recipient = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
 	sender = mailbox_get(L);
 
 	log_debug("Sending message from %p to %p", 
-                  (void*)sender, (void*)recepient->mailbox);
-
-	msg = mailbox_send(sender, recepient, msg_content, msg_size);
-	/* Return reference to message */
-	msg_ref = lua_newuserdata(L, sizeof(message_ref_t));
-	msg_ref->message = msg;
-	luaL_getmetatable(L, MESSAGE_REF_TYPE_NAME);
-	lua_setmetatable(L, -2);
-
+                  (void*)sender, (void*)recipient->mailbox);
+	content = lua_message_pop(L);
+	msg = mailbox_send(sender, recipient, content);
+	if (msg != NULL) {
+		/* Return reference to message */
+		msg_ref = lua_newuserdata(L, sizeof(message_ref_t));
+		msg_ref->message = msg;
+		luaL_getmetatable(L, MESSAGE_REF_TYPE_NAME);
+		lua_setmetatable(L, -2);
+	} else {
+		lua_pushboolean(L, 0);
+		lua_message_content_destroy(content);
+	}
 	return 1;
 }
 static int l_mailbox_tostring(lua_State *L) {
@@ -112,9 +116,11 @@ static int l_message_tostring(lua_State *L) {
 
 static int l_mailbox_message_get(lua_State *L) {
 	message_ref_t *ref;
+	message_t *msg;
+
 	ref = luaL_checkudata(L, 1, MESSAGE_REF_TYPE_NAME);
-	lua_pushstring(L, "hej");
-	return 1;
+	msg = mailbox_wait_for_reply(ref->message, 0);
+	return lua_message_push(L, mailbox_message_get_content(msg));
 }
 
 static int l_mailbox_ref_destroy(lua_State *L) {
@@ -127,14 +133,14 @@ static int l_mailbox_ref_destroy(lua_State *L) {
 static int l_mailbox_message_destroy(lua_State *L) {
 	message_ref_t *ref;
 	ref = luaL_checkudata(L, 1, MESSAGE_REF_TYPE_NAME);
-	mailbox_message_destroy(ref);
+	mailbox_message_destroy(ref->message);
 	return 0;
 }
 
 static const luaL_reg blocks_functions[] = {
 		{"spawn", l_spawn},
 		{"sleep", l_sleep},
-		{"receive", l_receive},
+		{"receive", l_message_receive},
 		{"extend_pool", l_pool_extend},
 		{ NULL, NULL}
 };
@@ -144,13 +150,13 @@ LUALIB_API int luaopen_blocks(lua_State *L) {
 	luaL_register(L, "blocks", blocks_functions);
 	l_blocks_init(L);
 
-        /* Mailbox reference meta-table */
+	/* Mailbox reference meta-table */
 	luaL_newmetatable(L, MAILBOX_REF_TYPE_NAME);
 	lua_pushstring(L, "__index");
 	lua_pushvalue(L, -2);
 	lua_settable(L, -3);
 	lua_pushstring(L, "send");
-	lua_pushcfunction(L, l_send);
+	lua_pushcfunction(L, l_message_send);
 	lua_settable(L, -3);
 	lua_pushstring(L, "__metadata");
 	lua_pushstring(L, "restricted");
@@ -185,7 +191,6 @@ LUALIB_API int luaopen_blocks(lua_State *L) {
 	lua_pushstring(L, "__gc");
 	lua_pushcfunction(L, l_mailbox_message_destroy);
 	lua_settable(L, -3);
-
 
 	lua_settop(L, 0);
 

@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include "mailbox.h"
+#include "process.h"
 #include <util/lua_util.h>
 #include <util/log.h>
 
@@ -20,25 +21,27 @@ enum message_state {
 };
 
 struct message {
+	message_content_t *content;
 	mailbox_ref_t *sender;
 	mailbox_ref_t *mailbox;
-    size_t msg_size;
-	void *message;
 	struct message *next;
     enum message_state state;
     int ref_count;
+    pthread_mutex_t mutex;
+    pthread_cond_t ready;
 };
 enum mailbox_state {
-	ALIVE,
-	DEAD
+	MBOX_ALIVE,
+	MBOX_DEAD
 };
 
 struct mailbox {
 	pthread_mutex_t mutex;
 	pthread_cond_t new_message;
-	struct message *head;
-	struct message *end;
+	message_t *head;
+	message_t *end;
 	enum mailbox_state state;
+	task_t *task;
 };
 
 mailbox_t *mailbox_init(lua_State *L) {
@@ -52,9 +55,10 @@ mailbox_t *mailbox_init(lua_State *L) {
 	mailbox = malloc(sizeof(struct mailbox));
 	pthread_cond_init(&mailbox->new_message, NULL);
 	pthread_mutex_init(&mailbox->mutex, NULL);
-	mailbox->state = ALIVE;
+	mailbox->state = MBOX_ALIVE;
 	mailbox->head = NULL;
 	mailbox->end = NULL;
+	mailbox->task = NULL;
 
 	ref->mailbox = mailbox;
 	return mailbox;
@@ -74,10 +78,10 @@ void mailbox_destroy(mailbox_ref_t *ref) {
 	mailbox = ref->mailbox;
 	int do_cleanup = 0;
 	pthread_mutex_lock(&mailbox->mutex);
-	if (mailbox->state == DEAD) {
+	if (mailbox->state == MBOX_DEAD) {
 		do_cleanup = 1;
 	} else {
-		mailbox->state = DEAD;
+		mailbox->state = MBOX_DEAD;
 	}
 	pthread_mutex_unlock(&mailbox->mutex);
 	if (do_cleanup) {
@@ -89,17 +93,23 @@ void mailbox_destroy(mailbox_ref_t *ref) {
 	}
 }
 
-message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recepient, void *message, size_t message_size) {
+message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recipient, message_content_t *content) {
 	message_t *msg;
 	mailbox_t *rcpt;
+	rcpt = recipient->mailbox;
+
+	if (rcpt->state == MBOX_DEAD) {
+		return NULL;
+	}
 	msg = malloc(sizeof(message_t));
-	msg->message = message;
-	msg->state=MSG_WAITING;
-	msg->msg_size = message_size;
-	msg->ref_count = 1;
-	msg->mailbox = recepient;
+	pthread_mutex_init(&msg->mutex, NULL);
+	pthread_cond_init(&msg->ready, NULL);
+	msg->content = content;
+	msg->state = MSG_WAITING;
+	msg->ref_count = 2; /*One for sender, one for recipient */
+	msg->mailbox = recipient;
 	msg->sender = sender;
-	rcpt = recepient->mailbox;
+
 	pthread_mutex_lock(&rcpt->mutex);
 	if (rcpt->head == NULL) {
 		rcpt->head = msg;
@@ -109,6 +119,7 @@ message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recepient, void *m
 		rcpt->end = msg;
 	}
 	pthread_mutex_unlock(&rcpt->mutex);
+	process_notify_task(rcpt->task);
 	return msg;
 }
 
@@ -126,6 +137,25 @@ message_t *mailbox_receive(mailbox_ref_t *mailbox_ref) {
     return msg;
 }
 
-void mailbox_message_destroy(message_ref_t *mailbox) {
-	log_debug("Destroying mailbox %p", (void*)mailbox);
+message_t *mailbox_wait_for_reply(message_t *message, int timeout) {
+
+}
+void mailbox_message_destroy(message_t *message) {
+	message_t *msg;
+	pthread_mutex_lock(&msg->mutex);
+	message->ref_count--;
+	if (message->ref_count == 0 &&
+			(message->state == MSG_READY || msg->state == MSG_DEAD)) {
+		log_debug("Destroying message %p", (void*)message);
+		free(message);
+	}
+	pthread_mutex_unlock(&msg->mutex);
+}
+
+void mailbox_set_task(mailbox_t *mailbox, task_t *task) {
+	mailbox->task = task;
+}
+
+message_content_t *mailbox_message_get_content(message_t *message) {
+	return message->content;
 }
