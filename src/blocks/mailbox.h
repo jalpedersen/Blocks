@@ -49,6 +49,8 @@ message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recipient,
 
 message_t *mailbox_receive(mailbox_ref_t *mailbox);
 
+message_t *mailbox_peek(mailbox_ref_t *mailbox_ref);
+
 message_t *mailbox_wait_for_reply(message_t *message, int timeout);
 
 int mailbox_message_reply(message_t *message);

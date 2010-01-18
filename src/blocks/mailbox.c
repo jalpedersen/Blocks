@@ -147,6 +147,17 @@ message_t *mailbox_receive(mailbox_ref_t *mailbox_ref) {
     return msg;
 }
 
+message_t *mailbox_peek(mailbox_ref_t *mailbox_ref) {
+	mailbox_t *mailbox;
+	message_t *msg;
+
+	mailbox = mailbox_ref->mailbox;
+	pthread_mutex_lock(&mailbox->mutex);
+	msg = mailbox->head;
+	pthread_mutex_unlock(&mailbox->mutex);
+    return msg;
+}
+
 message_t *mailbox_wait_for_reply(message_t *message, int timeout) {
 	log_debug("Waiting for message in %p:", (void*)message);
 	pthread_mutex_lock(&message->mutex);

@@ -17,11 +17,19 @@
 #include "blocks.h"
 #include "lua_message.h"
 
+enum task_state {
+	TASK_IDLE,
+	TASK_INIT,
+	TASK_WAITING,
+	TASK_PROCESSING,
+	TASK_DEAD
+};
 struct task {
 	lua_State *L;
 	short is_loaded;
 	thread_pool_t *pool;
 	pthread_mutex_t mutex;
+	enum task_state state;
 };
 struct task_item {
 	struct task *task;
@@ -71,20 +79,27 @@ static struct task *push_task(thread_pool_t *pool, struct task *task) {
 }
 
 void process_notify_task(task_t *task) {
-	pthread_mutex_lock(&task->pool->mutex);
-	push_task(task->pool, task);
-	log_debug("Notified task");
-	pthread_cond_signal(&task->pool->new_job);
-	pthread_mutex_unlock(&task->pool->mutex);
+	pthread_mutex_lock(&task->mutex);
+	if (task->state == TASK_IDLE) {
+		task->state = TASK_WAITING;
+		pthread_mutex_lock(&task->pool->mutex);
+		push_task(task->pool, task);
+		log_debug("Notified task: %p", (void*)task);
+		pthread_cond_signal(&task->pool->new_job);
+		pthread_mutex_unlock(&task->pool->mutex);
+	}
+	pthread_mutex_unlock(&task->mutex);
 }
 
 static void task_destroy(struct task *t) {
+	pthread_mutex_lock(&t->mutex);
+	t->state = TASK_DEAD;
+	pthread_mutex_unlock(&t->mutex);
 	mailbox_destroy(mailbox_get(t->L));
 	lua_close(t->L);
 	pthread_mutex_destroy(&t->mutex);
 	log_debug("Freeing task: %p", (void*)t);
 	free(t);
-
 }
 
 static void *worker(void *args) {
@@ -108,6 +123,9 @@ static void *worker(void *args) {
 			continue;
 		}
 		pthread_mutex_lock(&t->mutex);
+		t->state = TASK_PROCESSING;
+		pthread_mutex_unlock(&t->mutex);
+		mbox_ref = NULL;
 		L = t->L;
 		if ( ! t->is_loaded) {
 			/* Evaluate function that evaluates the real function */
@@ -139,11 +157,19 @@ static void *worker(void *args) {
 		/* if a function is returned, task survives
 		 * */
 		do_continue = lua_isfunction(L, 1);
-		pthread_mutex_unlock(&t->mutex);
 		/* If function hasn't left a callback function on
 		 * stack it is done and we close it's state */
 		if ( ! do_continue ) {
 			task_destroy(t);
+		} else {
+			pthread_mutex_lock(&t->mutex);
+			t->state = TASK_IDLE;
+			pthread_mutex_unlock(&t->mutex);
+			if (mbox_ref != NULL) {
+				if (mailbox_peek(mbox_ref) != NULL) {
+					process_notify_task(t);
+				}
+			}
 		}
 	}
 	return NULL;
@@ -244,6 +270,7 @@ mailbox_t *process_spawn(struct thread_pool *pool, lua_State *parent) {
 	task->L = luaL_newstate();
 	task->is_loaded = 0;
 	task->pool = pool;
+	task->state = TASK_INIT;
 	// luaL_openlibs(task->L);
 	luaopen_base(task->L);
 	luaopen_blocks(task->L);
