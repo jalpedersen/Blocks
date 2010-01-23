@@ -97,20 +97,29 @@ int dispatch(void *cls, struct MHD_Connection *connection,
 
 int main(int argc, char **argv) {
 	struct MHD_Daemon *daemon;
-
+	int port;
 	L = luaL_newstate();
 	luaL_openlibs(L);
 
 	luaL_loadfile(L, "scripts/init.lua");
 	lua_eval(L);
 	/* Load configuration */
+	lua_getglobal(L, "port");
+	if (lua_isnumber(L, -1)) {
+		port = lua_tointeger(L, -1);
+	} else {
+		port = PORT;
+	}
 	
-	daemon = MHD_start_daemon(MHD_USE_SELECT_INTERNALLY, PORT, NULL, NULL,
+	daemon = MHD_start_daemon(MHD_USE_SELECT_INTERNALLY, port, NULL, NULL,
 				  &dispatch, NULL, MHD_OPTION_END);
-	if (NULL == daemon)
+	if (NULL == daemon) {
+		log_error("Failed to bind to port %d", port);
 		return 1;
-	
-	getchar();
+	}
+	log_info("Service listening on %d", port);
+	while ('q' != getchar()) {
+	}
 	lua_close(L);
 	MHD_stop_daemon(daemon);
 	return 0;
