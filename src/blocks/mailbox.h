@@ -53,8 +53,14 @@ message_t *mailbox_peek(mailbox_ref_t *mailbox_ref);
 
 message_t *mailbox_wait_for_reply(message_t *message, int timeout);
 
-int mailbox_message_reply(message_t *message);
+int mailbox_message_reply(message_t *message, int is_dead);
 
 message_content_t *mailbox_message_get_content(message_t *message);
+
+void mailbox_register_current_message(lua_State *L, message_t *msg);
+
+void mailbox_register_parent(lua_State *L, mailbox_t *mailbox);
+
+mailbox_ref_t *mailbox_get_parent(lua_State *L);
 
 #endif /* MAILBOX_H_ */

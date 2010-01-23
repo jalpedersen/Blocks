@@ -86,6 +86,11 @@ static int l_message_send(lua_State *L) {
 	}
 	return 1;
 }
+
+static int l_add_to_reply(lua_State *L) {
+	return 0;
+}
+
 static int l_mailbox_tostring(lua_State *L) {
 	luaL_Buffer buf;
 	mailbox_ref_t *ref;
@@ -143,6 +148,7 @@ static const luaL_reg blocks_functions[] = {
 		{"spawn", l_spawn},
 		{"sleep", l_sleep},
 		{"receive", l_message_receive},
+		{"add_to_reply", l_add_to_reply},
 		{"extend_pool", l_pool_extend},
 		{ NULL, NULL}
 };

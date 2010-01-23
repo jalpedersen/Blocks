@@ -12,6 +12,8 @@
 #include <util/log.h>
 
 const char mailbox_key = 'M';
+const char parent_mailbox_key = 'P';
+const char current_message_key = 'C';
 
 enum message_state {
         MSG_WAITING,
@@ -64,9 +66,36 @@ mailbox_t *mailbox_init(lua_State *L) {
 	return mailbox;
 }
 
+void mailbox_register_current_message(lua_State *L, message_t *msg) {
+	message_ref_t *ref;
+	lua_pushlightuserdata(L, (void *)&current_message_key);
+	ref = lua_newuserdata(L, sizeof(struct message_ref));
+	lua_settable(L, LUA_REGISTRYINDEX);
+
+	ref->message = msg;
+}
+
+void mailbox_register_parent(lua_State *L, mailbox_t *mailbox) {
+	mailbox_ref_t *ref;
+	lua_pushlightuserdata(L, (void *)&parent_mailbox_key);
+	ref = lua_newuserdata(L, sizeof(struct mailbox_ref));
+	lua_settable(L, LUA_REGISTRYINDEX);
+
+	ref->mailbox = mailbox;
+}
+
 mailbox_ref_t *mailbox_get(lua_State *L) {
 	mailbox_ref_t *mailbox_ref;
 	lua_pushlightuserdata(L, (void *)&mailbox_key);
+	lua_gettable(L, LUA_REGISTRYINDEX);
+	mailbox_ref = lua_touserdata(L, -1);
+	lua_pop(L, 1);
+	return mailbox_ref;
+}
+
+mailbox_ref_t *mailbox_get_parent(lua_State *L) {
+	mailbox_ref_t *mailbox_ref;
+	lua_pushlightuserdata(L, (void *)&parent_mailbox_key);
 	lua_gettable(L, LUA_REGISTRYINDEX);
 	mailbox_ref = lua_touserdata(L, -1);
 	lua_pop(L, 1);
@@ -124,12 +153,15 @@ message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recipient, message
 	return msg;
 }
 
-int mailbox_message_reply(message_t *message) {
+int mailbox_message_reply(message_t *message, int is_dead) {
 	pthread_mutex_lock(&message->mutex);
-	message->state = MSG_READY;
+	if (is_dead) {
+		message->state = MSG_DEAD;
+	} else {
+		message->state = MSG_READY;
+	}
 	pthread_cond_signal(&message->ready);
 	pthread_mutex_unlock(&message->mutex);
-
 	return 0;
 }
 
@@ -159,7 +191,7 @@ message_t *mailbox_peek(mailbox_ref_t *mailbox_ref) {
 }
 
 message_t *mailbox_wait_for_reply(message_t *message, int timeout) {
-	log_debug("Waiting for message in %p:", (void*)message);
+	//log_debug("Waiting for message in %p:", (void*)message);
 	pthread_mutex_lock(&message->mutex);
 	while (message->state == MSG_WAITING ||
 			message->state == MSG_PROCESSING){
@@ -174,10 +206,10 @@ message_t *mailbox_wait_for_reply(message_t *message, int timeout) {
 void mailbox_message_destroy(message_t *message) {
 	pthread_mutex_lock(&message->mutex);
 	message->ref_count--;
-	log_debug("Message %p ref count: %d ", (void*)message, message->ref_count);
+	//log_debug("Message %p ref count: %d ", (void*)message, message->ref_count);
 	if (message->ref_count <= 0 &&
 			(message->state == MSG_READY || message->state == MSG_DEAD)) {
-		log_debug("Destroying message %p", (void*)message);
+		//log_debug("Destroying message %p", (void*)message);
 		pthread_mutex_unlock(&message->mutex);
 		pthread_cond_destroy(&message->ready);
 		pthread_mutex_destroy(&message->mutex);

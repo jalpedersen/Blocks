@@ -92,10 +92,17 @@ void process_notify_task(task_t *task) {
 }
 
 static void task_destroy(struct task *t) {
+	mailbox_ref_t *mbox_ref;
+	message_t *msg;
 	pthread_mutex_lock(&t->mutex);
 	t->state = TASK_DEAD;
 	pthread_mutex_unlock(&t->mutex);
-	mailbox_destroy(mailbox_get(t->L));
+	mbox_ref = mailbox_get(t->L);
+	while ((msg = mailbox_receive(mbox_ref)) != NULL) {
+		mailbox_message_reply(msg, 1);
+		mailbox_message_destroy(msg);
+	}
+	mailbox_destroy(mbox_ref);
 	lua_close(t->L);
 	pthread_mutex_destroy(&t->mutex);
 	log_debug("Freeing task: %p", (void*)t);
@@ -126,6 +133,7 @@ static void *worker(void *args) {
 		t->state = TASK_PROCESSING;
 		pthread_mutex_unlock(&t->mutex);
 		mbox_ref = NULL;
+		msg = NULL;
 		L = t->L;
 		if ( ! t->is_loaded) {
 			/* Evaluate function that evaluates the real function */
@@ -142,21 +150,22 @@ static void *worker(void *args) {
 			 * function left on the stack by the previous evaluation */
 			mbox_ref = mailbox_get(L);
 			msg = mailbox_receive(mbox_ref);
+			mailbox_register_current_message(L, msg);
 			if (msg != NULL) {
 				/* Push message onto Lua stack */
 				argc = lua_message_push(L, mailbox_message_get_content(msg));
 			}
 			lua_eval(L);
-			/* Move values from Lua stack to reply */
-			mailbox_message_reply(msg);
+			/* Signal any pending receivers that we have completed the task */
+			mailbox_message_reply(msg, 0);
 			if (msg != NULL) {
 				mailbox_message_destroy(msg);
 			}
-
 		}
-		/* if a function is returned, task survives
-		 * */
+
+		/* if a function is returned, task survives */
 		do_continue = lua_isfunction(L, 1);
+
 		/* If function hasn't left a callback function on
 		 * stack it is done and we close it's state */
 		if ( ! do_continue ) {
@@ -165,6 +174,8 @@ static void *worker(void *args) {
 			pthread_mutex_lock(&t->mutex);
 			t->state = TASK_IDLE;
 			pthread_mutex_unlock(&t->mutex);
+			/* If we more messages are waiting for us,
+			 * move us back into the task queue. */
 			if (mbox_ref != NULL) {
 				if (mailbox_peek(mbox_ref) != NULL) {
 					process_notify_task(t);
@@ -276,7 +287,8 @@ mailbox_t *process_spawn(struct thread_pool *pool, lua_State *parent) {
 	luaopen_blocks(task->L);
 	mailbox = mailbox_get(task->L)->mailbox;
 	mailbox_set_task(mailbox, task);
-	log_debug("Initialised task: %p", (void*)task);
+	mailbox_register_parent(task->L, mailbox_get(parent)->mailbox);
+
 	/* Copy values from parent */
 	copy_stack(parent, task->L);
 
