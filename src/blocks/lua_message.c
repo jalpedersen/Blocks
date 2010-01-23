@@ -10,8 +10,8 @@
 #include <util/log.h>
 #include <util/lua_util.h>
 
-struct argument {
-	int type;
+struct value {
+	short type;
 	int length;
 	void *data;
 };
@@ -20,19 +20,20 @@ static message_content_t *content_save(lua_State *L);
 static int content_restore(lua_State *L, message_content_t *content);
 int dump_function (lua_State *L, int size, const char **dst);
 
-struct arguments {
+struct values {
 	int size;
-	struct argument **arguments;
+	struct value *values;
 };
 
 int lua_message_push(lua_State *L, message_content_t *content) {
 	int argc, i;
-	struct argument *arg, **args;
-	struct arguments *arguments = content->message;
+	struct value *arg;
+	struct values *arguments = content->message;
 	argc = arguments->size;
-	args = arguments->arguments;
+	arg = arguments->values;
 	log_debug("arguments: %d (%p)", argc, (void*)arguments)
 	for (i = 0; i < argc; i++) {
+		log_debug("Restoring a %s", lua_typename(L, arg->type));
 		int type = LUA_TSTRING;
 		switch (type) {
 		case LUA_TFUNCTION:
@@ -52,40 +53,47 @@ int lua_message_push(lua_State *L, message_content_t *content) {
 			log_debug("type: %s", lua_typename(L, arg->type));
 			break;
 		}
+		arg = arg + 1;
 	}
-
+	/* Destroy message when done */
 	lua_message_content_destroy(content);
 
 	return argc;
 }
 
 static void *get_index(void *heap, int size) {
-	log_debug("size: %d", size);
 	return (unsigned char*)heap + size;
 }
 
 message_content_t *lua_message_pop(lua_State *L) {
-	int argc, i;
+	int argc, i, type;
 	int message_size;
 	void *raw_message;
 	message_content_t *content;
-	struct arguments *args;
-	struct argument *arg;
+	struct values *args;
+	struct value *arg;
 
 	/* Don't include the 'self' object */
 	argc = lua_gettop(L)-1;
-	message_size = sizeof(message_content_t) + sizeof(struct arguments);
-	message_size += sizeof(struct argument*) * argc;
-	message_size += sizeof(struct argument) * argc + 100;
+	message_size = sizeof(message_content_t) + sizeof(struct values)
+			+ (sizeof(struct value) * argc);
+
 	raw_message = malloc(message_size);
+
 	content = raw_message;
 	args = get_index(raw_message, sizeof(message_content_t));
 	content->message = args;
 	args->size = argc;
-	args->arguments = get_index(args, sizeof(struct arguments));
-	lua_stackdump(L);
-	arg = get_index(args, sizeof(struct argument*) * argc);
-	log_debug("arguments: %d, %p (%p)", argc, content->message, (void*)args->arguments);
+	arg = get_index(args, sizeof(struct values));
+	args->values = arg;
+	for (i = 2; i <= argc+1; i++) {
+		type = lua_type(L, i);
+		arg->type = type;
+		log_debug("Type: %s. Size: %d", lua_typename(L, type), lua_objlen(L, i));
+		arg = arg + 1;
+	}
+
+	log_debug("arguments: %d, %p (%p)", argc, content->message, (void*)args->values);
 
 	return content;
 }
