@@ -132,9 +132,9 @@ static void *worker(void *args) {
 		pthread_mutex_lock(&t->mutex);
 		t->state = TASK_PROCESSING;
 		pthread_mutex_unlock(&t->mutex);
-		mbox_ref = NULL;
-		msg = NULL;
 		L = t->L;
+		mbox_ref = mailbox_get(L);
+		msg = NULL;
 		if ( ! t->is_loaded) {
 			/* Evaluate function that evaluates the real function */
 			lua_pushvalue(L, 1);
@@ -148,7 +148,6 @@ static void *worker(void *args) {
 		} else {
 			/* Pop message from queue and pass the values to the
 			 * function left on the stack by the previous evaluation */
-			mbox_ref = mailbox_get(L);
 			msg = mailbox_receive(mbox_ref);
 			mailbox_register_current_message(L, msg);
 			if (msg != NULL) {
