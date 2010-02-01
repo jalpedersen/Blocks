@@ -11,7 +11,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-typedef int (*mb_message_cb_t)(int client_sd, size_t size, void *data);
+typedef int (*mb_message_cb_t)(int client_sd, size_t size, int position, void *data);
 
 
 #ifndef CHANNEL_BUFFER

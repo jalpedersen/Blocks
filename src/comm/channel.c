@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <errno.h>
 #include <memory.h>
+#include <util/log.h>
 
 enum addr_type {
 	ADDR_UNIX,
@@ -31,19 +32,23 @@ struct mb_channel {
 };
 
 
-static int set_non_blocking(int sd) {
+static int set_non_blocking(int sd, int strict) {
 	int option_value = 1;
 	int ret;
 	ret = setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, (char *) &option_value,
 			sizeof(option_value));
 	if (ret < 0) {
-		perror("setsockopt failed");
+		if (strict) {
+			log_perror("setsockopt failed");
+		}
 		close(sd);
 		return -1;
 	}
 	ret = ioctl(sd, FIONBIO, (char *) &option_value);
 	if (ret < 0) {
-		perror("ioctl failed");
+		if (strict) {
+			log_perror("ioctl failed");
+		}
 		close(sd);
 		return -1;
 	}
@@ -59,11 +64,11 @@ mb_channel_t *mb_channel_bind_path(const char *path) {
 	channel->type = ADDR_UNIX;
 	channel->sd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (channel->sd < 0) {
-		perror("socket failed");
+		log_perror("socket failed");
 		return NULL;
 	}
 	/* Setup the socket to be non-blocking */
-	ret = set_non_blocking(channel->sd);
+	ret = set_non_blocking(channel->sd, 1);
 	if (ret < 0) {
 		/*error message already printed by previous function*/
 		return NULL;
@@ -84,14 +89,14 @@ mb_channel_t *mb_channel_bind_path(const char *path) {
 	ret = bind(channel->sd, (struct sockaddr *) &channel->addr.un,
 			sizeof(channel->addr.un));
 	if (ret < 0) {
-		perror("bind failed");
+		log_perror("bind failed");
 		close(channel->sd);
 		return NULL;
 	}
 
 	ret = listen(channel->sd, CHANNEL_BACKLOG);
 	if (ret < 0) {
-		perror("listen failed");
+		log_perror("listen failed");
 		close(channel->sd);
 		return NULL;
 	}
@@ -106,11 +111,11 @@ mb_channel_t *mb_channel_bind_port(int port) {
 	channel->type = ADDR_INET;
 	channel->sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (channel->sd < 0) {
-		perror("socket failed");
+		log_perror("socket failed");
 		return NULL;
 	}
 	/* Setup the socket to be non-blocking */
-	ret = set_non_blocking(channel->sd);
+	ret = set_non_blocking(channel->sd, 1);
 	if (ret < 0) {
 		/*error message already printed by previous function*/
 		return NULL;
@@ -125,14 +130,14 @@ mb_channel_t *mb_channel_bind_port(int port) {
 	ret = bind(channel->sd, (struct sockaddr *) &channel->addr.in,
 			sizeof(channel->addr.in));
 	if (ret < 0) {
-		perror("bind failed");
+		log_perror("bind failed");
 		close(channel->sd);
 		return NULL;
 	}
 
 	ret = listen(channel->sd, CHANNEL_BACKLOG);
 	if (ret < 0) {
-		perror("listen failed");
+		log_perror("listen failed");
 		close(channel->sd);
 		return NULL;
 	}
@@ -151,11 +156,12 @@ int mb_channel_receive(mb_channel_t *channel, mb_message_cb_t cb) {
 	int sd, new_sd;
 	int max_sd, ret;
 	int is_conn_active;
+	int position;
 	struct timeval timeout;
 	char buffer[CHANNEL_BUFFER];
 	int is_active = 1;
 
-	timeout.tv_sec = 2 * 60; /* 2 minute timeout*/
+	timeout.tv_sec = 30; /* 30 sec. timeout*/
 	timeout.tv_usec = 0;
 
 	FD_ZERO(&master_set);
@@ -166,7 +172,7 @@ int mb_channel_receive(mb_channel_t *channel, mb_message_cb_t cb) {
 		memcpy(&working_set, &master_set, sizeof(master_set));
 		ret = select(max_sd + 1, &working_set, NULL, NULL, &timeout);
 		if (ret < 0) {
-			perror("select failed");
+			log_perror("select failed");
 			return -1;
 		}
 		if (ret == 0) {
@@ -183,7 +189,7 @@ int mb_channel_receive(mb_channel_t *channel, mb_message_cb_t cb) {
 						new_sd = accept(channel->sd, NULL, NULL);
 						if (new_sd < 0) {
 							if (errno != EWOULDBLOCK) {
-								perror("accept failed");
+								log_perror("accept failed");
 								is_active = 0;
 							}
 							break;
@@ -195,13 +201,18 @@ int mb_channel_receive(mb_channel_t *channel, mb_message_cb_t cb) {
 					}
 				} else {
 					is_conn_active = 1;
+					position = 0;
 					while (1) {
 						int msg_len;
 						memset(buffer, 0, sizeof(buffer));
+						set_non_blocking(sd, 0);
 						ret = recv(sd, buffer, sizeof(buffer), 0);
 						if (ret < 0) {
-							if (errno != EWOULDBLOCK) {
-								perror("receive failed");
+							if (errno == EBADF) {
+								/* Socket was closed */
+								is_conn_active = 0;
+							}else if (errno != EWOULDBLOCK) {
+								log_perror("receive failed");
 								is_conn_active = 0;
 							}
 							break;
@@ -211,12 +222,13 @@ int mb_channel_receive(mb_channel_t *channel, mb_message_cb_t cb) {
 							break;
 						}
 						msg_len = ret;
-						ret = cb(sd, msg_len, buffer);
+						ret = cb(sd, msg_len, position, buffer);
 						if (ret < 0) {
-							perror("callback failed");
+							log_perror("callback failed");
 							is_conn_active = 0;
 							break;
 						}
+						position += msg_len;
 					}
 					if (!is_conn_active) {
 						close(sd);
@@ -246,7 +258,7 @@ static mb_channel_t *mb_channel_reopen_unix(mb_channel_t *channel) {
 	int ret;
 	channel->sd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (channel->sd < 0) {
-		perror("socket");
+		log_perror("socket");
 		mb_channel_destroy(channel);
 		return NULL;
 	}
@@ -257,7 +269,7 @@ static mb_channel_t *mb_channel_reopen_unix(mb_channel_t *channel) {
 	ret = connect(channel->sd, (struct sockaddr *) &channel->addr.un,
 			sizeof(channel->addr.un));
 	if (ret < 0) {
-		perror("connect");
+		log_perror("connect");
 		mb_channel_destroy(channel);
 		return NULL;
 	}
@@ -284,7 +296,7 @@ int mb_chanel_send(mb_channel_t *channel, size_t size, void *data,
 	}
 	if (msg_len != size) {
 		mb_channel_destroy(channel);
-		perror("send");
+		log_perror("send");
 		return -1;
 
 	}
