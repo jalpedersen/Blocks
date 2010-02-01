@@ -21,10 +21,10 @@ BLOCKS_OBJECTS=$(BLOCKS_SOURCES:.c=.o)
 BLOCKS_LDFLAGS=-$(SHARED_OPTION) -fPIC -lpthread $(BLOCKS_EXTRA_LDFLAGS)
 LIBRARY=blocks.so
 
-EVA_SOURCES=src/http/main.c src/util/lua_util.c
+EVA_SOURCES=src/http/main.c src/util/lua_util.c src/comm/channel.c
 EVA_OBJECTS=$(EVA_SOURCES:.c=.o)
 MAIN_EXEC=eva
-EVA_LDFLAGS=-lmicrohttpd -lm -ldl $(EVA_EXTRA_LDFLAGS)
+EVA_LDFLAGS=-lm -ldl $(EVA_EXTRA_LDFLAGS)
 
 
 all: $(BLOCKS_SOURCES) $(LIBRARY) $(EVA_SOURCES) $(MAIN_EXEC)
