@@ -57,6 +57,7 @@ int lua_eval_part(lua_State *L, int narg, int nres) {
 		break;
 	default:
 		log_error("Unknown state: %d", ret);
+		lua_pushstring(L, "Unknown state");
 		lua_error(L);
 	}
 	if (ret != 0) {

@@ -15,8 +15,18 @@
 #define MSG_MAX_SIZE 512
 #endif
 
+enum msg_type {
+	T_INTEGER,
+	T_FLOATING,
+	T_STRING,
+	T_BOOLEAN,
+	T_FUNCTION,
+	T_TABLE,
+	T_NIL
+};
+
 struct value {
-	short type;
+	enum msg_type type;
 	size_t length;
 	void *data;
 };
@@ -32,30 +42,33 @@ struct values {
 
 int lua_message_push(lua_State *L, message_content_t *content) {
 	int argc, i;
+	enum msg_type type;
 	struct value *arg;
 	struct values *arguments = content->message;
 	argc = arguments->size;
 	arg = arguments->values;
-	log_debug("arguments: %d (%p)", argc, (void*)arguments)
 	for (i = 0; i < argc; i++) {
-		log_debug("Restoring a %s", lua_typename(L, arg->type));
-		int type = LUA_TSTRING;
+		type = arg->type;
 		switch (type) {
-		case LUA_TFUNCTION:
+		case T_BOOLEAN:
+			lua_pushboolean(L, *(char*)arg->data);
 			break;
-		case LUA_TNUMBER:
-			break;
-		case LUA_TBOOLEAN:
-			break;
-		case LUA_TNIL:
-			break;
-		case LUA_TNONE:
-			break;
-		case LUA_TSTRING:
+		case T_INTEGER:
+		case T_FLOATING:
+		case T_STRING:
 			lua_pushlstring(L, arg->data, arg->length);
 			break;
+		case T_NIL:
+			lua_pushnil(L);
+			break;
+		case T_FUNCTION:
+			lua_pushnil(L);
+			break;
+		case T_TABLE:
+			lua_pushnil(L);
+			break;
 		default:
-			log_debug("type: %s", lua_typename(L, arg->type));
+			log_debug("un-handled type: %d", arg->type);
 			break;
 		}
 		arg = arg + 1;
@@ -66,9 +79,7 @@ int lua_message_push(lua_State *L, message_content_t *content) {
 	return argc;
 }
 
-static void *get_index(void *heap, int size) {
-	return (unsigned char*)heap + size;
-}
+#define get_index(heap, size) (void*)((unsigned char*)heap + size);
 
 message_content_t *lua_message_pop(lua_State *L) {
 	int argc, i, type;
@@ -95,24 +106,37 @@ message_content_t *lua_message_pop(lua_State *L) {
 	args->values = arg;
 	for (i = 2; i <= argc+1; i++) {
 		type = lua_type(L, i);
-		arg->type = LUA_TSTRING;
+		switch (type) {
+		case LUA_TBOOLEAN: arg->type = T_BOOLEAN; break;
+		case LUA_TSTRING: arg->type = T_STRING; break;
+		case LUA_TNUMBER: arg->type = T_FLOATING; break;
+		case LUA_TFUNCTION: arg->type = T_FUNCTION; break;
+		case LUA_TNIL: arg->type = T_NIL; break;
+		case LUA_TTABLE: arg->type = T_TABLE; break;
+		default: arg->type = T_NIL; break;
+		}
 		length = lua_objlen(L, i);
 		total_length += length;
 		if (total_length > MSG_MAX_SIZE) {
 			log_error("Max size of %d exceeded by %d", MSG_MAX_SIZE, total_length - MSG_MAX_SIZE);
+			lua_pushstring(L, "Max message size exceeded.");
 			free(content);
+			lua_error(L);
 			return NULL;
 		}
 		arg->length = length;
 		arg->data = content_heap;
-		memcpy(arg->data, lua_tolstring(L, i, &length), length);
-		log_debug("Type: %s. Size: %d", lua_typename(L, type), length);
+		if (arg->type == T_BOOLEAN) {
+			*(int*)arg->data = lua_toboolean(L, i);
+			length = sizeof(char);
+		} else {
+			memcpy(arg->data, lua_tolstring(L, i, &length), length);
+		}
+		//log_debug("Type: %s. Size: %d", lua_typename(L, type), length);
 		arg = arg + 1;
 		content_heap = get_index(content_heap, length);
 	}
-
-	log_debug("arguments: %d, %p (%p)", argc, content->message, (void*)args->values);
-
+	//log_debug("arguments: %d, %p (%p)", argc, content->message, (void*)args->values);
 	return content;
 }
 
@@ -136,6 +160,7 @@ static int load_string(lua_State *L) {
 	case LUA_ERRMEM:
 	case LUA_ERRSYNTAX:
 		luaL_error(L, lua_tostring(L, -1));
+		break;
 	default:
 		luaL_error(L, "Unexpected state: %d", ret);
 	}
