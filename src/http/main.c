@@ -23,6 +23,7 @@
 #include <util/log.h>
 #include <util/lua_util.h>
 #include <comm/messagebus.h>
+#include <comm/fileio.h>
 #include "request_processor.h"
 #include <pthread.h>
 
@@ -33,7 +34,7 @@ http_parser *http_request_parser;
 
 int dispatch(int client_sd, size_t size, int position, void *data) {
 	http_parser *parser = http_request_parser;
-
+	log_debug("SD: %d, Position: %d. Size: %d", client_sd, position, size);
 	if (position == 0) {
 		request_processor_reset(parser, client_sd, L);
 	}
@@ -61,8 +62,8 @@ int main(int argc, char **argv) {
 
 	/* Set up HTTP parser */
 	http_request_parser = request_processor_init();
-	/* Register netio functions in Lua environment */
-	luaopen_netio(L);
+	/* Register fileio functions in Lua environment */
+	luaopen_fileio(L);
 	while (is_alive) {
 		mb_channel_receive(tcp_channel, dispatch);
 	}

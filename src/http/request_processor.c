@@ -40,6 +40,13 @@ static int start_processing(http_parser *parser) {
 	lua_eval(L);
 	return 0;
 }
+static int message_complete(http_parser *parser) {
+	struct http_conn_info *conn_info;
+	conn_info = (struct http_conn_info*)parser->data;
+
+	log_debug("Message complete: %d", conn_info->client_sd);
+	return 0;
+}
 
 int print_data(http_parser *parser, const char *data, size_t size) {
 	char str[size+1];
@@ -88,12 +95,12 @@ http_parser *request_processor_reset(http_parser *parser, int client_sd, lua_Sta
 	parser->on_header_field = NULL;
 	parser->on_header_value = NULL;
 	parser->on_path = on_path;
-	parser->on_url = print_data;
+	//parser->on_url = print_data;
 	parser->on_fragment = NULL;
 	parser->on_query_string = on_query;
-	parser->on_body = print_data;
+	//parser->on_body = print_data;
 	parser->on_headers_complete = start_processing;
-	parser->on_message_complete = NULL;
+	parser->on_message_complete = message_complete;
 
 	return parser;
 }
@@ -117,50 +124,4 @@ int request_processor_destroy(http_parser *parser) {
 		free(conn_info);
 	}
 	free(parser);
-}
-
-static int l_send(lua_State *L) {
-	int sd, i, sent, received;
-	sd = luaL_checkinteger(L, 1);
-	sent = received = 0;
-	for (i = 2; i <= lua_gettop(L); i++) {
-		received += lua_objlen(L, i);
-		sent += send(sd, lua_tostring(L, i), lua_objlen(L, i), 0);
-		if (sent < 0) {
-			lua_pushstring(L, "send failed");
-			lua_error(L);
-			return 0;
-		} 
-	}
-	lua_pushinteger(L, sent);
-	lua_pushinteger(L, received);
-	return 2;
-}
-
-static int l_close(lua_State *L) {
-	int sd;
-	sd = luaL_checkinteger(L, 1);
-	if (close(sd) < 0) {
-		lua_pushstring(L, "close failed");
-		lua_error(L);
-		return 0;
-	}
-	return 0;
-}
-
-static int l_receive(lua_State *L) {
-	return 0;
-}
-
-static const luaL_reg netio_functions[] = {
-		{"send", l_send},
-		{"close", l_close},
-		{"receive", l_receive},
-		{ NULL, NULL}
-};
-
-int luaopen_netio(lua_State *L) {
-	luaL_register(L, "netio", netio_functions);
-	lua_settop(L, 0);
-
 }

@@ -12,8 +12,8 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #include <util/log.h>
-#include <http/request_processor.h>
 #include <util/lua_util.h>
+#include <comm/fileio.h>
 #include "process.h"
 #include "blocks.h"
 #include "lua_message.h"
@@ -285,7 +285,7 @@ mailbox_t *process_spawn(struct thread_pool *pool, lua_State *parent) {
 	//luaL_openlibs(task->L);
 	luaopen_base(task->L);
 	luaopen_blocks(task->L);
-	luaopen_netio(task->L);
+	luaopen_fileio(task->L);
 	mailbox = mailbox_get(task->L)->mailbox;
 	mailbox_set_task(mailbox, task);
 	mailbox_register_parent(task->L, mailbox_get(parent)->mailbox);

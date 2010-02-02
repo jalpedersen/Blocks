@@ -193,6 +193,7 @@ int mb_channel_receive(mb_channel_t *channel, mb_message_cb_t cb) {
 							break;
 						}
 						FD_SET(new_sd, &master_set);
+						set_non_blocking(new_sd, 0);
 						if (new_sd > max_sd) {
 							max_sd = new_sd;
 						}
@@ -203,7 +204,6 @@ int mb_channel_receive(mb_channel_t *channel, mb_message_cb_t cb) {
 					while (1) {
 						int msg_len;
 						memset(buffer, 0, sizeof(buffer));
-						set_non_blocking(sd, 0);
 						ret = recv(sd, buffer, sizeof(buffer), 0);
 						if (ret < 0) {
 							if (errno == EBADF) {

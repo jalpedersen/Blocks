@@ -3,20 +3,17 @@ require ('io')
 
 print("Starting up...");
 handler = function(path, query, sd)
-    blocks.spawn(function(sd) 
-        sent, recv = netio.send(sd, ' hello there from task ');
-    print ('T: sent: ', sent, ' recv: ', recv);
-	netio.close(sd)
-    end, sd)
+    sent, recv = fileio.send(sd, 'hello there from dispatcher: ', sd, ' ', path, query, '\n')
+    blocks.sleep(1);
+    fileio.send(sd, 'closing ', sd, ' ', path, '\n');
+    print ('D: sent: ', sent, ' recv: ', recv);
     print ('path:          ' , path)
     print ('query:         ', query)
     print ('client socket: ', sd)
 end
 
 dispatch = function(path, query, sd)
-    sent, recv = netio.send(sd, 'hello there from dispatcher: ', path, query)
-    print ('D: sent: ', sent, ' recv: ', recv);
-    blocks.spawn(handler, path, query, sd); 
+    local r = blocks.spawn(handler, path, query, sd);
 end
 p = blocks.spawn(
 	function() print 'hi there from a different thread of execution' 

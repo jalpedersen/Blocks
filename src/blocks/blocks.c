@@ -125,9 +125,7 @@ static int l_mailbox_message_get(lua_State *L) {
 
 	ref = luaL_checkudata(L, 1, MESSAGE_REF_TYPE_NAME);
 	msg = mailbox_wait_for_reply(ref->message, 0);
-	lua_pushstring(L, "argh");
-	return 1;
-	//return lua_message_push(L, mailbox_message_get_content(msg));
+	return lua_message_push(L, mailbox_message_get_content(msg));
 }
 
 static int l_mailbox_ref_destroy(lua_State *L) {
