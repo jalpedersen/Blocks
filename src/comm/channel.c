@@ -159,7 +159,6 @@ int mb_channel_receive(mb_channel_t *channel, mb_message_cb_t cb) {
 	int position;
 	struct timeval timeout;
 	char buffer[CHANNEL_BUFFER];
-	int is_active = 1;
 
 	timeout.tv_sec = 30; /* 30 sec. timeout*/
 	timeout.tv_usec = 0;
@@ -190,7 +189,6 @@ int mb_channel_receive(mb_channel_t *channel, mb_message_cb_t cb) {
 						if (new_sd < 0) {
 							if (errno != EWOULDBLOCK) {
 								log_perror("accept failed");
-								is_active = 0;
 							}
 							break;
 						}

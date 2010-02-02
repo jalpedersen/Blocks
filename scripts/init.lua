@@ -4,7 +4,9 @@ require ('io')
 print("Starting up...");
 handler = function(path, query, sd)
     blocks.spawn(function(sd) 
-        netio.send(sd, 'hello there');
+        sent, recv = netio.send(sd, ' hello there from task ');
+    print ('T: sent: ', sent, ' recv: ', recv);
+	netio.close(sd)
     end, sd)
     print ('path:          ' , path)
     print ('query:         ', query)
@@ -12,10 +14,8 @@ handler = function(path, query, sd)
 end
 
 dispatch = function(path, query, sd)
-    sent, recv = netio.send(sd, 'hello there', 1, 'blah blah')
-    print ('sent: ', sent, ' recv: ', recv);
-    netio.close(sd)
-    
+    sent, recv = netio.send(sd, 'hello there from dispatcher: ', path, query)
+    print ('D: sent: ', sent, ' recv: ', recv);
     blocks.spawn(handler, path, query, sd); 
 end
 p = blocks.spawn(

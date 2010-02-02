@@ -85,7 +85,7 @@ void process_notify_task(task_t *task) {
 		task->state = TASK_WAITING;
 		pthread_mutex_lock(&task->pool->mutex);
 		push_task(task->pool, task);
-		log_debug("Notified task: %p", (void*)task);
+		//log_debug("Notified task: %p", (void*)task);
 		pthread_cond_signal(&task->pool->new_job);
 		pthread_mutex_unlock(&task->pool->mutex);
 	}
@@ -106,7 +106,7 @@ static void task_destroy(struct task *t) {
 	mailbox_destroy(mbox_ref);
 	lua_close(t->L);
 	pthread_mutex_destroy(&t->mutex);
-	log_debug("Freeing task: %p", (void*)t);
+	//log_debug("Freeing task: %p", (void*)t);
 	free(t);
 }
 

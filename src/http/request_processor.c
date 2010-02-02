@@ -140,7 +140,12 @@ static int l_send(lua_State *L) {
 static int l_close(lua_State *L) {
 	int sd;
 	sd = luaL_checkinteger(L, 1);
-	close(sd);
+	if (close(sd) < 0) {
+		lua_pushstring(L, "close failed");
+		lua_error(L);
+		return 0;
+	}
+	return 0;
 }
 
 static int l_receive(lua_State *L) {

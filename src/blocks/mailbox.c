@@ -114,7 +114,7 @@ void mailbox_destroy(mailbox_ref_t *ref) {
 	}
 	pthread_mutex_unlock(&mailbox->mutex);
 	if (do_cleanup) {
-		log_debug("Destroying mailbox: %p", (void*)mailbox);
+		// log_debug("Destroying mailbox: %p", (void*)mailbox);
 		/* Remove messages as well*/
 		pthread_cond_destroy(&mailbox->new_message);
 		pthread_mutex_destroy(&mailbox->mutex);
