@@ -120,15 +120,21 @@ int request_processor_destroy(http_parser *parser) {
 }
 
 static int l_send(lua_State *L) {
-	int sd, i;
+	int sd, i, sent, received;
 	sd = luaL_checkinteger(L, 1);
+	sent = received = 0;
 	for (i = 2; i <= lua_gettop(L); i++) {
-		if (send(sd, lua_tostring(L, i), lua_objlen(L, i), 0) < 0) {
+		received += lua_objlen(L, i);
+		sent += send(sd, lua_tostring(L, i), lua_objlen(L, i), 0);
+		if (sent < 0) {
 			lua_pushstring(L, "send failed");
 			lua_error(L);
-		}
+			return 0;
+		} 
 	}
-	return 0;
+	lua_pushinteger(L, sent);
+	lua_pushinteger(L, received);
+	return 2;
 }
 
 static int l_close(lua_State *L) {

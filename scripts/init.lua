@@ -3,12 +3,17 @@ require ('io')
 
 print("Starting up...");
 handler = function(path, query, sd)
-    print ('path: ' .. path)
-    print ('query: '.. query)
+    blocks.spawn(function(sd) 
+        netio.send(sd, 'hello there');
+    end, sd)
+    print ('path:          ' , path)
+    print ('query:         ', query)
+    print ('client socket: ', sd)
 end
 
 dispatch = function(path, query, sd)
-    netio.send(sd, 'hello there', 1, 'blah blah')
+    sent, recv = netio.send(sd, 'hello there', 1, 'blah blah')
+    print ('sent: ', sent, ' recv: ', recv);
     netio.close(sd)
     
     blocks.spawn(handler, path, query, sd); 
