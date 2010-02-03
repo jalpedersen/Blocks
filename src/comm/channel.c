@@ -152,6 +152,11 @@ int mb_channel_destroy(mb_channel_t *channel) {
 	return 0;
 }
 
+struct client_info {
+	int position;
+	void *aux_data;
+};
+
 int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	fd_set master_set, working_set;
 	int ready_count;
@@ -161,8 +166,8 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	int position;
 	struct timeval timeout;
 	char buffer[CHANNEL_BUFFER];
-	int aux_data_length;
-	void **aux_data;
+	int clients_length;
+	struct client_info *clients;
 	mb_message_part_cb_t part_cb;
 	mb_message_begin_cb_t begin_cb;
 	mb_message_end_cb_t end_cb;
@@ -178,9 +183,9 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	max_sd = channel->sd;
 	FD_SET(channel->sd, &master_set);
 
-	aux_data_length = max_sd + CLIENTS;
-	aux_data = malloc(sizeof(void*) * aux_data_length);
-	memset(aux_data, 0, sizeof(void*) * aux_data_length);
+	clients_length = max_sd + CLIENTS;
+	clients = malloc(sizeof(struct client_info) * clients_length);
+	memset(clients, 0, sizeof(struct client_info) * clients_length);
 
 	while (1) {
 		memcpy(&working_set, &master_set, sizeof(master_set));
@@ -211,21 +216,23 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 						set_non_blocking(new_sd, 0);
 						if (new_sd > max_sd) {
 							max_sd = new_sd;
-							if (max_sd >= aux_data_length) {
+							if (max_sd >= clients_length) {
 								log_debug("Increasing aux_data array");
-								aux_data = realloc(aux_data, sizeof(void*) * (aux_data_length + CLIENTS));
-								void *new_area = (char*)aux_data + (sizeof(void*) * aux_data_length);
-								memset(new_area, 0, sizeof(void*) * CLIENTS);
-								aux_data_length+=CLIENTS;
+								clients = realloc(clients,
+										sizeof(struct client_info) * (clients_length + CLIENTS));
+								void *new_area =
+										(char*)clients + (sizeof(struct client_info) * clients_length);
+								memset(new_area, 0, sizeof(struct client_info) * CLIENTS);
+								clients_length+=CLIENTS;
 							}
 						}
 					}
 				} else {
 					is_conn_active = 1;
 					position = 0;
-					if (aux_data[sd] == NULL) {
+					if (clients[sd].position == 0) {
 						// Begin new state
-						begin_cb(sd, &aux_data[sd]);
+						begin_cb(sd, &clients[sd].aux_data);
 					}
 					while (1) {
 						int msg_len;
@@ -246,23 +253,29 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 							break;
 						}
 						msg_len = ret;
-						ret = part_cb(sd, msg_len, position, buffer, &aux_data[sd]);
+						ret = part_cb(sd, msg_len, position, buffer, &clients[sd].aux_data);
 						if (ret < 0) {
 							log_perror("callback failed");
 							is_conn_active = 0;
 							break;
 						}
 						position += msg_len;
+						clients[sd].position = position;
 					}
 					if (!is_conn_active) {
-						end_cb(sd, &aux_data[sd]);
-						aux_data[sd] = NULL;
+						end_cb(sd, &clients[sd].aux_data);
+						clients[sd].position = 0;
 						close(sd);
 						FD_CLR(sd, &master_set);
 						if (sd == max_sd) {
 							while (FD_ISSET(max_sd, &master_set) == 0) {
 								max_sd -= 1;
 							}
+						}
+						if (max_sd < clients_length - CLIENTS) {
+							log_debug("Shrinking client buffer");
+							clients_length -= CLIENTS;
+							clients = realloc(clients, (sizeof(struct client_info) *clients_length));
 						}
 					}
 				}
@@ -275,12 +288,12 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 			continue; /*Do not close server socket*/
 		}
 		if (FD_ISSET(sd, &master_set)) {
-			end_cb(sd, &aux_data[sd]);
-			aux_data[sd] = NULL;
+			end_cb(sd, &clients[sd].aux_data);
+			clients[sd].position = 0;
 			close(sd);
 		}
 	}
-	free(aux_data);
+	free(clients);
 	return 0;
 }
 

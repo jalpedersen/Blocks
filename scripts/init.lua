@@ -6,7 +6,7 @@ handler = function(path, query, sd)
     sent, recv = fileio.send(sd, 'hello there from dispatcher: ', sd, ' ', path, query, '\n')
     blocks.sleep(1);
     fileio.send(sd, 'closing ', sd, ' ', path, '\n');
-    fileio.close(sd)
+--    fileio.close(sd)
     print ('D: sent: ', sent, ' recv: ', recv);
     print ('path:          ' , path)
     print ('query:         ', query)
