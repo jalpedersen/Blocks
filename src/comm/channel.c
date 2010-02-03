@@ -42,16 +42,16 @@ static int set_non_blocking(int sd, int strict) {
 	if (ret < 0) {
 		if (strict) {
 			log_perror("setsockopt failed");
+			close(sd);
 		}
-		close(sd);
 		return -1;
 	}
 	ret = ioctl(sd, FIONBIO, (char *) &option_value);
 	if (ret < 0) {
 		if (strict) {
 			log_perror("ioctl failed");
+			close(sd);
 		}
-		close(sd);
 		return -1;
 	}
 	return 1;
