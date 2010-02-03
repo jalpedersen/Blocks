@@ -92,30 +92,16 @@ static int l_add_to_reply(lua_State *L) {
 }
 
 static int l_mailbox_tostring(lua_State *L) {
-	luaL_Buffer buf;
 	mailbox_ref_t *ref;
-	char id[18];
 	ref = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
-	luaL_buffinit(L, &buf);
-	luaL_addstring(&buf, MAILBOX_TYPE_NAME);
-	luaL_addstring(&buf, ": ");
-	snprintf(id, 16, "%p", (void*)ref->mailbox);
-	luaL_addstring(&buf, id);
-	luaL_pushresult(&buf);
+	lua_pushfstring(L, "%s: %p", MAILBOX_TYPE_NAME, (void*)ref->mailbox);
 	return 1;
 }
 
 static int l_message_tostring(lua_State *L) {
-	luaL_Buffer buf;
 	message_ref_t *ref;
-	char id[18];
 	ref = luaL_checkudata(L, 1, MESSAGE_REF_TYPE_NAME);
-	luaL_buffinit(L, &buf);
-	luaL_addstring(&buf, MESSAGE_TYPE_NAME);
-	luaL_addstring(&buf, ": ");
-	snprintf(id, 16, "%p", (void*)ref->message);
-	luaL_addstring(&buf, id);
-	luaL_pushresult(&buf);
+	lua_pushfstring(L, "%s: %p", MESSAGE_TYPE_NAME, (void*)ref->message);
 	return 1;
 }
 
