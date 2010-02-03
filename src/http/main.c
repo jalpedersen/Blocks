@@ -42,7 +42,6 @@ static void release_http_parser(http_parser *parser) {
 
 int dispatch(int client_sd, size_t size, int position, void *data, void **aux_data) {
 	http_parser *parser = *(http_parser**)aux_data;
-	log_debug("SD: %d, Position: %d. Size: %d", client_sd, position, size);
 	return http_parser_execute(parser, (char *)data, size);
 }
 
@@ -56,6 +55,7 @@ int msg_start(int client_sd, void **aux_data) {
 int msg_end(int client_sd, void **aux_data) {
 	log_debug("Ending %d", client_sd);
 	release_http_parser(*(http_parser**)aux_data);
+	*aux_data = NULL;
 	return 0;
 }
 

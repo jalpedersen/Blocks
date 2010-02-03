@@ -10,6 +10,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <lua.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <lauxlib.h>
 #include <lualib.h>
 #include <util/lua_util.h>
@@ -20,6 +22,7 @@ struct http_conn_info {
 	char *path;
 	char *query;
 	int client_sd;
+	int tmp_file_sd;
 	lua_State *L;
 };
 
@@ -38,12 +41,18 @@ static int start_processing(http_parser *parser) {
 	lua_pushstring(L, conn_info->query);
 	lua_pushinteger(L, conn_info->client_sd);
 	lua_eval(L);
+	conn_info->tmp_file_sd = open("tmp-data", O_WRONLY | O_CREAT);
+	if (conn_info->tmp_file_sd < 0) {
+		log_perror("");
+	}
+	log_debug("Opened file %d", conn_info->tmp_file_sd);
 	return 0;
 }
 static int message_complete(http_parser *parser) {
 	struct http_conn_info *conn_info;
 	conn_info = (struct http_conn_info*)parser->data;
-
+	close(conn_info->tmp_file_sd);
+	log_debug("Closed file %d", conn_info->tmp_file_sd);
 	log_debug("Message complete: %d", conn_info->client_sd);
 	return 0;
 }
@@ -53,6 +62,15 @@ int print_data(http_parser *parser, const char *data, size_t size) {
 	strncpy(str, data, size);
 	str[size] = '\0';
 	log_debug("data: %s", str);
+	return 0;
+}
+
+int on_body(http_parser *parser, const char *data, size_t size) {
+	struct http_conn_info *conn_info;
+	int written;
+	conn_info = (struct http_conn_info*)parser->data;
+	written = write(conn_info->tmp_file_sd, data, size);
+	//log_debug("Wrote %d bytes", written);
 	return 0;
 }
 int on_query(http_parser *parser, const char *data, size_t size) {
@@ -65,6 +83,7 @@ int on_query(http_parser *parser, const char *data, size_t size) {
 	conn_info->query = str;
 	return 0;
 }
+
 int on_path(http_parser *parser, const char *data, size_t size) {
 	struct http_conn_info *conn_info;
 	char *str;
@@ -98,7 +117,7 @@ http_parser *request_processor_reset(http_parser *parser, int client_sd, lua_Sta
 	//parser->on_url = print_data;
 	parser->on_fragment = NULL;
 	parser->on_query_string = on_query;
-	//parser->on_body = print_data;
+	parser->on_body = on_body;
 	parser->on_headers_complete = start_processing;
 	parser->on_message_complete = message_complete;
 
