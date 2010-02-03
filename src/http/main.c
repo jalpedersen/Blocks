@@ -30,20 +30,39 @@
 #define PORT 8888
 
 lua_State *L = NULL;
-http_parser *http_request_parser;
 
-int dispatch(int client_sd, size_t size, int position, void *data) {
-	http_parser *parser = http_request_parser;
+static http_parser *get_http_parser() {
+	http_parser *parser;
+	parser = request_processor_init();
+	return parser;
+}
+static void release_http_parser(http_parser *parser) {
+	request_processor_destroy(parser);
+}
+
+int dispatch(int client_sd, size_t size, int position, void *data, void **aux_data) {
+	http_parser *parser = *(http_parser**)aux_data;
 	log_debug("SD: %d, Position: %d. Size: %d", client_sd, position, size);
-	if (position == 0) {
-		request_processor_reset(parser, client_sd, L);
-	}
 	return http_parser_execute(parser, (char *)data, size);
+}
+
+int msg_start(int client_sd, void **aux_data) {
+	http_parser *parser = get_http_parser();
+	log_debug("Starting %d", client_sd);
+	*aux_data = request_processor_reset(parser, client_sd, L);
+	return 0;
+}
+
+int msg_end(int client_sd, void **aux_data) {
+	log_debug("Ending %d", client_sd);
+	release_http_parser(*(http_parser**)aux_data);
+	return 0;
 }
 
 int main(int argc, char **argv) {
 	int port;
 	int is_alive;
+	mb_handler_t handler;
 	mb_channel_t *tcp_channel;
 	L = luaL_newstate();
 	luaL_openlibs(L);
@@ -60,15 +79,18 @@ int main(int argc, char **argv) {
 	tcp_channel = mb_channel_bind_port(port);
 	is_alive = tcp_channel != NULL;
 
-	/* Set up HTTP parser */
-	http_request_parser = request_processor_init();
+	/* setup handlers */
+	handler.part_cb = dispatch;
+	handler.begin_cb = msg_start;
+	handler.end_cb = msg_end;
+
 	/* Register fileio functions in Lua environment */
 	luaopen_fileio(L);
+
 	while (is_alive) {
-		mb_channel_receive(tcp_channel, dispatch);
+		mb_channel_receive(tcp_channel, &handler);
 	}
 	lua_close(L);
-	request_processor_destroy(http_request_parser);
 
 	if (tcp_channel != NULL) {
 		mb_channel_destroy(tcp_channel);
