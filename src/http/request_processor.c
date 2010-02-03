@@ -20,11 +20,24 @@
 
 struct http_conn_info {
 	char *path;
+	int path_size;
 	char *query;
+	int query_size;
 	int client_sd;
 	int tmp_file_sd;
 	lua_State *L;
 };
+
+#define save_data(_conn_info, data_ptr, data_size, new_data_ptr, new_data_size) \
+		struct http_conn_info *conn_info; \
+		char *str; \
+		conn_info = (struct http_conn_info*)_conn_info; \
+		int new_size = new_data_size + conn_info->data_size; \
+		str = realloc(conn_info->data_ptr, sizeof(char) * new_size +1); \
+		str[new_size] = '\0'; \
+		strncpy((str+conn_info->data_size), new_data_ptr, new_data_size); \
+		conn_info->data_ptr = str; \
+		conn_info->data_size = new_size; \
 
 static const char *header = "HTTP/1.1 200 OK\nConnection: Close\nContent-Type: text/html\r\n\n";
 
@@ -74,24 +87,12 @@ int on_body(http_parser *parser, const char *data, size_t size) {
 	return 0;
 }
 int on_query(http_parser *parser, const char *data, size_t size) {
-	struct http_conn_info *conn_info;
-	char *str;
-	str = malloc(sizeof(char) * size +1);
-	conn_info = (struct http_conn_info*)parser->data;
-	str[size] = '\0';
-	strncpy(str, data, size);
-	conn_info->query = str;
+	save_data(parser->data, query, query_size, data, size);
 	return 0;
 }
 
 int on_path(http_parser *parser, const char *data, size_t size) {
-	struct http_conn_info *conn_info;
-	char *str;
-	str = malloc(sizeof(char) * size +1);
-	conn_info = (struct http_conn_info*)parser->data;
-	str[size] = '\0';
-	strncpy(str, data, size);
-	conn_info->path = str;
+	save_data(parser->data, path, path_size, data, size);
 	return 0;
 }
 
@@ -104,8 +105,10 @@ http_parser *request_processor_reset(http_parser *parser, int client_sd, lua_Sta
 	}
 	http_parser_init(parser, parser->type);
 
-	conn_info->path=NULL;
-	conn_info->query=NULL;
+	conn_info->path = NULL;
+	conn_info->path_size = 0;
+	conn_info->query = NULL;
+	conn_info->query_size = 0;
 	conn_info->L = L;
 	conn_info->client_sd = client_sd;
 	parser->data = conn_info;
