@@ -6,6 +6,7 @@ handler = function(path, query, sd)
     sent, recv = fileio.send(sd, 'hello there from dispatcher: ', sd, ' ', path, query, '\n')
     blocks.sleep(1);
     fileio.send(sd, 'closing ', sd, ' ', path, '\n');
+    fileio.close(sd)
     print ('D: sent: ', sent, ' recv: ', recv);
     print ('path:          ' , path)
     print ('query:         ', query)
@@ -13,6 +14,10 @@ handler = function(path, query, sd)
 end
 
 dispatch = function(path, query, sd)
+    fh = io.popen('ls');
+    for line in fh:lines() do
+  	fileio.send(sd, line, ' ')
+    end
     local r = blocks.spawn(handler, path, query, sd);
 end
 p = blocks.spawn(

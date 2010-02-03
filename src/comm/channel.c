@@ -17,6 +17,8 @@
 #include <memory.h>
 #include <util/log.h>
 
+#define CLIENTS 5
+
 enum addr_type {
 	ADDR_UNIX,
 	ADDR_INET
@@ -159,7 +161,7 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	int position;
 	struct timeval timeout;
 	char buffer[CHANNEL_BUFFER];
-	int aux_data_length = 10;
+	int aux_data_length;
 	void **aux_data;
 	mb_message_part_cb_t part_cb;
 	mb_message_begin_cb_t begin_cb;
@@ -175,10 +177,12 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	FD_ZERO(&master_set);
 	max_sd = channel->sd;
 	FD_SET(channel->sd, &master_set);
+
+	aux_data_length = max_sd + CLIENTS;
 	aux_data = malloc(sizeof(void*) * aux_data_length);
 	memset(aux_data, 0, sizeof(void*) * aux_data_length);
+
 	while (1) {
-		log_debug("Max sd: %d", max_sd);
 		memcpy(&working_set, &master_set, sizeof(master_set));
 		ret = select(max_sd + 1, &working_set, NULL, NULL, &timeout);
 		if (ret < 0) {
@@ -207,12 +211,13 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 						set_non_blocking(new_sd, 0);
 						if (new_sd > max_sd) {
 							max_sd = new_sd;
-						}
-						if (max_sd >= aux_data_length) {
-							log_debug("Increasing aux_data array");
-							aux_data = realloc(aux_data, sizeof(void*) * (aux_data_length + 10));
-							void *new_area = (char*)aux_data + (sizeof(void*) + aux_data_length);
-							memset(new_area, 0, sizeof(void*) + 10);
+							if (max_sd >= aux_data_length) {
+								log_debug("Increasing aux_data array");
+								aux_data = realloc(aux_data, sizeof(void*) * (aux_data_length + CLIENTS));
+								void *new_area = (char*)aux_data + (sizeof(void*) * aux_data_length);
+								memset(new_area, 0, sizeof(void*) * CLIENTS);
+								aux_data_length+=CLIENTS;
+							}
 						}
 					}
 				} else {
@@ -255,8 +260,9 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 						close(sd);
 						FD_CLR(sd, &master_set);
 						if (sd == max_sd) {
-							while (FD_ISSET(max_sd, &master_set) == 0)
+							while (FD_ISSET(max_sd, &master_set) == 0) {
 								max_sd -= 1;
+							}
 						}
 					}
 				}
@@ -274,6 +280,7 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 			close(sd);
 		}
 	}
+	free(aux_data);
 	return 0;
 }
 
