@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <lua.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <errno.h>
 #include <lauxlib.h>
 #include <lualib.h>
@@ -54,9 +55,9 @@ static int start_processing(http_parser *parser) {
 	lua_pushstring(L, conn_info->query);
 	lua_pushinteger(L, conn_info->client_sd);
 	lua_eval(L);
-	conn_info->tmp_file_sd = open("tmp-data", O_WRONLY | O_CREAT);
+	conn_info->tmp_file_sd = open("tmp-data", O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
 	if (conn_info->tmp_file_sd < 0) {
-		log_perror("");
+		log_perror("While opening file for client: %d", conn_info->client_sd);
 	}
 	log_debug("Opened file %d", conn_info->tmp_file_sd);
 	return 0;
