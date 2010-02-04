@@ -32,3 +32,5 @@ r = p:send(10, 1.223, 'Hello there', true, false, {fisk = 2}, function(a) a() en
 --print (r:get())
 
 port = 8889
+
+io.popen('notify-send started...')

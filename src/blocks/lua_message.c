@@ -12,8 +12,9 @@
 #include <util/lua_util.h>
 
 #ifndef MSG_MAX_SIZE
-#define MSG_MAX_SIZE 512
+#define MSG_MAX_SIZE (2 * 1024)
 #endif
+#define MSG_INC_SIZE 256
 
 enum msg_type {
 	T_INTEGER,
@@ -28,7 +29,6 @@ enum msg_type {
 struct value {
 	enum msg_type type;
 	size_t length;
-	void *data;
 };
 
 static message_content_t *content_save(lua_State *L);
@@ -37,26 +37,32 @@ int dump_function (lua_State *L, int size, const char **dst);
 
 struct values {
 	int size;
-	struct value *values;
 };
 
+#define get_index(heap, position, size) (void*)((unsigned char*)heap + *(position)); *(position)+=size; 
+
 int lua_message_push(lua_State *L, message_content_t *content) {
-	int argc, i;
+	int argc, i, heap_position;
 	enum msg_type type;
+	void *heap, *data;
 	struct value *arg;
-	struct values *arguments = content->message;
+	struct values *arguments;
+	heap = content->message;
+	heap_position = 0;
+	arguments = get_index(heap, &heap_position, sizeof(struct values));
 	argc = arguments->size;
-	arg = arguments->values;
 	for (i = 0; i < argc; i++) {
+		arg = get_index(heap, &heap_position, sizeof(struct value));
+		data = get_index(heap, &heap_position, arg->length);
 		type = arg->type;
 		switch (type) {
 		case T_BOOLEAN:
-			lua_pushboolean(L, *(char*)arg->data);
+			lua_pushboolean(L, *(char*)data);
 			break;
 		case T_INTEGER:
 		case T_FLOATING:
 		case T_STRING:
-			lua_pushlstring(L, arg->data, arg->length);
+			lua_pushlstring(L, data, arg->length);
 			break;
 		case T_NIL:
 			lua_pushnil(L);
@@ -71,7 +77,6 @@ int lua_message_push(lua_State *L, message_content_t *content) {
 			log_debug("un-handled type: %d", arg->type);
 			break;
 		}
-		arg = arg + 1;
 	}
 	/* Destroy message when done */
 	lua_message_content_destroy(content);
@@ -79,68 +84,68 @@ int lua_message_push(lua_State *L, message_content_t *content) {
 	return argc;
 }
 
-#define get_index(heap, size) (void*)((unsigned char*)heap + size);
 
 message_content_t *lua_message_pop(lua_State *L) {
-	int argc, i, type;
-	size_t length, total_length;
+	int argc, i, l_type, type;
+	size_t length, value_length;
 	int message_size;
-	void *content_heap;
+	int heap_position;
+	int heap_size;
+	void *heap, *data;
 	message_content_t *content;
 	struct values *args;
 	struct value *arg;
 
 	/* Don't include the 'self' object */
 	argc = lua_gettop(L)-1;
-	message_size = sizeof(message_content_t) + sizeof(struct values)
-			+ (sizeof(struct value) * argc);
 
-	content = malloc(message_size + MSG_MAX_SIZE);
-	content_heap = get_index(content, message_size);
-	total_length = 0;
-	args = get_index(content, sizeof(message_content_t));
+	message_size = sizeof(struct values) + (sizeof(struct value) * argc);
+	heap_size = message_size + MSG_INC_SIZE;
+	heap = malloc(heap_size);
+	heap_position = 0;
 
-	content->message = args;
+	args = get_index(heap, &heap_position, sizeof(struct values));
 	args->size = argc;
-	arg = get_index(args, sizeof(struct values));
-	args->values = arg;
 	for (i = 2; i <= argc+1; i++) {
-		type = lua_type(L, i);
-		switch (type) {
-		case LUA_TBOOLEAN: arg->type = T_BOOLEAN; break;
-		case LUA_TSTRING: arg->type = T_STRING; break;
-		case LUA_TNUMBER: arg->type = T_FLOATING; break;
-		case LUA_TFUNCTION: arg->type = T_FUNCTION; break;
-		case LUA_TNIL: arg->type = T_NIL; break;
-		case LUA_TTABLE: arg->type = T_TABLE; break;
-		default: arg->type = T_NIL; break;
+		l_type = lua_type(L, i);
+		switch (l_type) {
+		case LUA_TBOOLEAN: type = T_BOOLEAN; length = sizeof(char); break;
+		case LUA_TSTRING: type = T_STRING; length = lua_objlen(L, i); break;
+		case LUA_TNUMBER: type = T_FLOATING; length = lua_objlen(L, i); break;
+		case LUA_TFUNCTION: type = T_FUNCTION; length = lua_objlen(L, i); break;
+		case LUA_TNIL: type = T_NIL; length = lua_objlen(L, i); break;
+		case LUA_TTABLE: type = T_TABLE; length = lua_objlen(L, i); break;
+		default: type = T_NIL; length = lua_objlen(L, i); break;
 		}
-		length = lua_objlen(L, i);
-		total_length += length;
-		if (total_length > MSG_MAX_SIZE) {
-			log_error("Max size of %d exceeded by %d", MSG_MAX_SIZE, total_length - MSG_MAX_SIZE);
-			lua_pushstring(L, "Max message size exceeded.");
-			free(content);
-			lua_error(L);
-			return NULL;
+		value_length = length + sizeof(struct value); 
+		if (heap_position + value_length >= heap_size) {
+			heap_size += MSG_INC_SIZE + value_length;
+			if (heap_size > MSG_MAX_SIZE) {
+				lua_pushfstring(L, "Max message size of %d exceeded by %d", MSG_MAX_SIZE, heap_size-MSG_MAX_SIZE); 
+				lua_error(L);
+				free(heap);
+				return NULL;
+			}
+			heap = realloc(heap, heap_size);
 		}
+		arg = get_index(heap, &heap_position, sizeof(struct value));
+		data = get_index(heap, &heap_position, length);
 		arg->length = length;
-		arg->data = content_heap;
-		if (arg->type == T_BOOLEAN) {
-			*(int*)arg->data = lua_toboolean(L, i);
-			length = sizeof(char);
+		arg->type = type;
+		if (type == T_BOOLEAN) {
+			*(char*)data = lua_toboolean(L, i);
 		} else {
-			memcpy(arg->data, lua_tolstring(L, i, &length), length);
+			memcpy(data, lua_tolstring(L, i, &length), length);
 		}
-		//log_debug("Type: %s. Size: %d", lua_typename(L, type), length);
-		arg = arg + 1;
-		content_heap = get_index(content_heap, length);
+		//log_debug("Type: %s. Size: %d", lua_typename(L, l_type), length);
 	}
-	//log_debug("arguments: %d, %p (%p)", argc, content->message, (void*)args->values);
+	content = malloc(sizeof(message_content_t));
+	content->message = heap;
 	return content;
 }
 
 void lua_message_content_destroy(message_content_t *content) {
+	free(content->message);
 	free(content);
 }
 
