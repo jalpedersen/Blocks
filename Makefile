@@ -23,7 +23,7 @@ LIBRARY=blocks.so
 
 EVA_SOURCES=src/http/main.c src/util/lua_util.c src/comm/channel.c
 EVA_SOURCES+=src/http/request_processor.c 3rd-party/http-parser/http_parser.c
-EVA_SOURCES+=src/comm/fileio.c
+EVA_SOURCES+=src/comm/fileio.c src/http/file_util.c
 EVA_OBJECTS=$(EVA_SOURCES:.c=.o)
 MAIN_EXEC=eva
 HTTP_PARSER_FLAGS=-DHTTP_PARSER_STRICT=0 -I3rd-party/http-parser

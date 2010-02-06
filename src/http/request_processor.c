@@ -22,6 +22,7 @@
 #include <util/lua_util.h>
 #include <util/log.h>
 #include <comm/messagebus.h>
+#include "file_util.h"
 
 extern FILE *fdopen (int __fd, __const char *__modes);
 
@@ -113,7 +114,7 @@ static struct mime_type *get_mimetype(const char *path) {
 	if (postfix != NULL) {
 		postfix += 1;
 		t = mimetypes;
-		while (t->postfix != NULL) {
+		while (t != NULL) {
 			if (strncasecmp(t->postfix, postfix, t->postfix_size) == 0) {
 				return t;
 			}
@@ -123,13 +124,11 @@ static struct mime_type *get_mimetype(const char *path) {
 	return &bin_mimetype;
 }
 
-static int send_file(http_parser *parser) {
+static int http_send_file(http_parser *parser) {
 	struct http_conn_info *conn_info;
 	int r_bytes, w_bytes;
 	FILE *fd;
 	const char *file;
-	const size_t buf_size = 1024;
-	char buffer[buf_size];
 
 	conn_info = (struct http_conn_info*)parser->data;
 	file = conn_info->path;
@@ -138,13 +137,7 @@ static int send_file(http_parser *parser) {
 		send_header(conn_info->client_fd, 404, "NOT FOUND", get_mimetype(file));
 	} else {
 		send_header(conn_info->client_fd, 200, "OK", get_mimetype(file));
-		while ((r_bytes = fread(buffer, 1, buf_size, fd)) > 0) {
-			w_bytes = fwrite(buffer, 1, r_bytes, conn_info->client_fd);
-			if (w_bytes < r_bytes) {
-				log_debug("Failed to send all bytes.");
-				break;
-			}
-		}
+		send_file(fd, conn_info->client_fd);
 		fclose(fd);
 	}
 	return 0;
@@ -160,7 +153,7 @@ static int start_processing(http_parser *parser) {
 	} else {
 		log_debug("path : %s", conn_info->path);
 		conn_info->type = 'S';
-		send_file(parser);
+		http_send_file(parser);
 	}
 	return 0;
 }
