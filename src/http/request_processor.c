@@ -20,13 +20,16 @@
 #include <util/log.h>
 #include <comm/messagebus.h>
 
+extern FILE *fdopen (int __fd, __const char *__modes);
+
 struct http_conn_info {
 	char *path;
 	int path_size;
 	char *query;
 	int query_size;
+	FILE *client_fd;
 	int client_sd;
-	int tmp_file_sd;
+	FILE *temp_file;
 	lua_State *L;
 	char type;
 };
@@ -62,22 +65,13 @@ static struct mime_type mimetypes[] = {
 		{"txt", 3, "text/plain", 10},
 		NULL
 };
+#define DEFAULT_ROOT "./html"
 
-static int send_header(int sd, int status, struct mime_type *type) {
-	int sent;
-	char *status_str;
-	switch (status) {
-	case 200: status_str = "200 OK"; break;
-	case 402: status_str = "403 FORBIDDEN"; break;
-	case 404: status_str = "404 NOT FOUND"; break;
-	default: status_str = "500 INTERNAL ERROR";
-	}
-	sent = send(sd, "HTTP/1.1 ", 9, 0);
-	sent += send(sd, status_str, strlen(status_str), 0);
-	sent += send(sd, "\nConnection: Close\nContent-Type: ", 33, 0);
-	sent += send(sd, type->mimetype, type->mimetype_size, 0);
-	sent += send(sd, "\r\n\n", 3, 0);
-	return sent;
+static int send_header(FILE *fd, int status, const char *status_msg,
+		struct mime_type *type) {
+	return fprintf(fd, "HTTP/1.1 %d %s\nConnection: Close\nContent-Type: %s\r\n\n",
+			status, status_msg, type->mimetype);
+
 }
 
 static int http_lua_eval(http_parser *parser) {
@@ -86,13 +80,13 @@ static int http_lua_eval(http_parser *parser) {
 	conn_info = (struct http_conn_info*)parser->data;
 
 	/* Send HTTP headers to client */
-	send_header(conn_info->client_sd, 200, &json_mimetype);
+	send_header(conn_info->client_fd, 200, "OK", &json_mimetype);
 	L = conn_info->L;
 	lua_settop(L, 0);
 	lua_getglobal(L, "dispatch");
 	lua_pushstring(L, conn_info->path);
 	lua_pushstring(L, conn_info->query);
-	lua_pushinteger(L, conn_info->client_sd);
+	//lua_pushinteger(L, conn_info->client_sd);
 	switch(parser->method) {
 	case HTTP_GET: lua_pushstring(L, "GET");break;
 	case HTTP_POST: lua_pushstring(L, "POST");break;
@@ -121,13 +115,28 @@ static struct mime_type *get_mimetype(const char *path) {
 
 static int send_file(http_parser *parser) {
 	struct http_conn_info *conn_info;
+	int r_bytes, w_bytes;
+	FILE *fd;
+	const char *file;
+	const size_t buf_size = 1024;
+	char buffer[buf_size];
 
 	conn_info = (struct http_conn_info*)parser->data;
-	const char *dummy = "<html><h1>Kashmir</h1></html>";
-	send_header(conn_info->client_sd, 200, get_mimetype(conn_info->path));
-
-	send(conn_info->client_sd, dummy, strlen(dummy), 0);
-
+	file = conn_info->path;
+	fd = fopen(file, "r");
+	if (fd == NULL) {
+		send_header(conn_info->client_fd, 404, "NOT FOUND", get_mimetype(file));
+	} else {
+		send_header(conn_info->client_fd, 200, "OK", get_mimetype(file));
+		while ((r_bytes = fread(buffer, 1, buf_size, fd)) > 0) {
+			w_bytes = fwrite(buffer, 1, r_bytes, conn_info->client_fd);
+			if (w_bytes < r_bytes) {
+				log_debug("Failed to send all bytes.");
+				break;
+			}
+		}
+		fclose(fd);
+	}
 	return 0;
 }
 
@@ -143,22 +152,16 @@ static int start_processing(http_parser *parser) {
 		conn_info->type = 'S';
 		send_file(parser);
 	}
-	conn_info->tmp_file_sd = open("tmp-data", O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-	if (conn_info->tmp_file_sd < 0) {
-		log_perror("While opening file for client: %d", conn_info->client_sd);
-	}
-	log_debug("Opened file %d", conn_info->tmp_file_sd);
 	return 0;
 }
 static int message_complete(http_parser *parser) {
 	struct http_conn_info *conn_info;
 	conn_info = (struct http_conn_info*)parser->data;
-	close(conn_info->tmp_file_sd);
+	fflush(conn_info->client_fd);
 	if (conn_info->type != 'L') {
-		close(conn_info->client_sd);
+		fclose(conn_info->client_fd);
 	}
-	log_debug("Closed file %d", conn_info->tmp_file_sd);
-	log_debug("Message complete: %d", conn_info->client_sd);
+	//log_debug("Message complete: %d", conn_info->client_sd);
 	return 0;
 }
 
@@ -174,8 +177,6 @@ int on_body(http_parser *parser, const char *data, size_t size) {
 	struct http_conn_info *conn_info;
 	int written;
 	conn_info = (struct http_conn_info*)parser->data;
-	written = write(conn_info->tmp_file_sd, data, size);
-	//log_debug("Wrote %d bytes", written);
 	return 0;
 }
 int on_query(http_parser *parser, const char *data, size_t size) {
@@ -203,6 +204,7 @@ http_parser *request_processor_reset(http_parser *parser, int client_sd, lua_Sta
 	conn_info->query_size = 0;
 	conn_info->L = L;
 	conn_info->client_sd = client_sd;
+	conn_info->client_fd = fdopen(client_sd, "r+");
 	parser->data = conn_info;
 
 	parser->on_message_begin = NULL;
