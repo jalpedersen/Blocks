@@ -5,17 +5,20 @@
  *      Author: jalp
  */
 #include "request_processor.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
-#include <lua.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <time.h>
+#include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
+
 #include <util/lua_util.h>
 #include <util/log.h>
 #include <comm/messagebus.h>
@@ -66,11 +69,18 @@ static struct mime_type mimetypes[] = {
 		NULL
 };
 #define DEFAULT_ROOT "./html"
+#define RFC1123FMT "%a, %d %b %Y %H:%M:%S GMT"
 
 static int send_header(FILE *fd, int status, const char *status_msg,
 		struct mime_type *type) {
-	return fprintf(fd, "HTTP/1.1 %d %s\nConnection: Close\nContent-Type: %s\r\n\n",
-			status, status_msg, type->mimetype);
+	char timebuffer[64];
+	time_t now;
+	now = time(NULL);
+	strftime(timebuffer, sizeof(timebuffer), RFC1123FMT, gmtime(&now));
+
+
+	return fprintf(fd, "HTTP/1.1 %d %s\nConnection: Close\nDate: %s\nContent-Type: %s\r\n\n",
+			status, status_msg, timebuffer, type->mimetype);
 
 }
 
