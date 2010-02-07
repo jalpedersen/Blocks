@@ -11,6 +11,13 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
+char *get_full_path(char *path_buffer, const char* path,
+					size_t path_length, const char *file, size_t file_length) {
+	strncpy(path_buffer, path, path_length);
+	strncpy(path_buffer+path_length, file, file_length);
+	path_buffer[path_length + file_length] = '\0';
+	return path_buffer;
+}
 int send_file(FILE *src, FILE *dst) {
 	const size_t buf_size = 1024;
 	char buffer[buf_size];

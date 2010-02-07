@@ -81,8 +81,7 @@ static int send_header(FILE *fd, int status, const char *status_msg,
 	now = time(NULL);
 	strftime(timebuffer, sizeof(timebuffer), RFC1123FMT, gmtime(&now));
 
-
-	return fprintf(fd, "HTTP/1.1 %d %s\nConnection: Close\nDate: %s\nContent-Type: %s\r\n\n",
+	return fprintf(fd, "HTTP/1.1 %d %s\nServer: Eva 1.0\nConnection: Close\nDate: %s\nContent-Type: %s\r\n\n",
 			status, status_msg, timebuffer, type->mimetype);
 
 }
@@ -134,7 +133,10 @@ static int http_send_file(http_parser *parser) {
 	const char *file;
 
 	conn_info = (struct http_conn_info*)parser->data;
-	file = conn_info->path;
+	char buffer[conn_info->path_size + 6 + 1];
+
+	file = get_full_path(buffer, "./html", 6, conn_info->path, conn_info->path_size);
+	log_debug("Getting: %s", file);
 	fd = fopen(file, "r");
 	if (fd == NULL) {
 		send_header(conn_info->client_fd, 404, "NOT FOUND", get_mimetype(file));
@@ -154,7 +156,7 @@ static int start_processing(http_parser *parser) {
 		conn_info->type = 'L';
 		http_lua_eval(parser);
 	} else {
-		log_debug("path : %s", conn_info->path);
+		//log_debug("path : %s", conn_info->path);
 		conn_info->type = 'S';
 		http_send_file(parser);
 	}

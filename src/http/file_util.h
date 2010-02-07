@@ -12,5 +12,8 @@
 
 int send_file(FILE *src, FILE *dst);
 
+char *get_full_path(char *path_buffer, const char* path,
+					size_t path_length, const char *file, size_t file_length);
+
 int lua_pushfile(lua_State *L, FILE *file);
 #endif /* FILE_UTIL_H_ */
