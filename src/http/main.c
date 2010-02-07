@@ -23,7 +23,6 @@
 #include <util/log.h>
 #include <util/lua_util.h>
 #include <comm/messagebus.h>
-#include <comm/fileio.h>
 #include "request_processor.h"
 #include <pthread.h>
 
@@ -83,9 +82,6 @@ int main(int argc, char **argv) {
 	handler.part_cb = dispatch;
 	handler.begin_cb = msg_start;
 	handler.end_cb = msg_end;
-
-	/* Register fileio functions in Lua environment */
-	luaopen_fileio(L);
 
 	while (is_alive) {
 		mb_channel_receive(tcp_channel, &handler);

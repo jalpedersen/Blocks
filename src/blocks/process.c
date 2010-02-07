@@ -13,7 +13,6 @@
 #include <lauxlib.h>
 #include <util/log.h>
 #include <util/lua_util.h>
-#include <comm/fileio.h>
 #include "process.h"
 #include "blocks.h"
 #include "lua_message.h"
@@ -265,6 +264,10 @@ static void copy_stack(lua_State *src, lua_State *dst) {
 			str = lua_tolstring(src, i, &len);
 			lua_pushlstring(dst, str, len);
 			break;
+		case LUA_TUSERDATA:
+		case LUA_TLIGHTUSERDATA:
+			lua_pushlightuserdata(dst, lua_touserdata(src, i));
+			break;
 		default:
 			lua_pushnil(dst);
 			log_debug("type: %s", lua_typename(src, type));
@@ -285,7 +288,6 @@ mailbox_t *process_spawn(struct thread_pool *pool, lua_State *parent) {
 	//luaL_openlibs(task->L);
 	luaopen_base(task->L);
 	luaopen_blocks(task->L);
-	luaopen_fileio(task->L);
 	mailbox = mailbox_get(task->L)->mailbox;
 	mailbox_set_task(mailbox, task);
 	mailbox_register_parent(task->L, mailbox_get(parent)->mailbox);

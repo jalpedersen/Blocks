@@ -3,10 +3,7 @@ require ('io')
 
 print("Starting up...");
 handler = function(path, query, sd)
-    sent, recv = fileio.send(sd, 'hello there from dispatcher: ', sd, ' ', path, query, '\n')
     blocks.sleep(1);
-    fileio.send(sd, 'closing ', sd, ' ', path, '\n');
---    fileio.close(sd)
     print ('D: sent: ', sent, ' recv: ', recv);
     print ('path:          ' , path)
     print ('query:         ', query)
@@ -16,8 +13,11 @@ end
 dispatch = function(path, query, sd)
     fh = io.popen('ls');
     for line in fh:lines() do
-  	fileio.send(sd, line, ' ')
+        print (line)
+        print (sd)
+	    sd:write(line)
     end
+    sd:close()
     local r = blocks.spawn(handler, path, query, sd);
 end
 p = blocks.spawn(

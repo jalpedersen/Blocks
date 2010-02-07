@@ -31,6 +31,8 @@ struct http_conn_info {
 	int path_size;
 	char *query;
 	int query_size;
+	char *host;
+	char *host_size;
 	FILE *client_fd;
 	int client_sd;
 	FILE *temp_file;
@@ -97,7 +99,8 @@ static int http_lua_eval(http_parser *parser) {
 	lua_getglobal(L, "dispatch");
 	lua_pushstring(L, conn_info->path);
 	lua_pushstring(L, conn_info->query);
-	//lua_pushinteger(L, conn_info->client_sd);
+	lua_pushfile(L, conn_info->client_fd);
+
 	switch(parser->method) {
 	case HTTP_GET: lua_pushstring(L, "GET");break;
 	case HTTP_POST: lua_pushstring(L, "POST");break;
@@ -160,10 +163,11 @@ static int start_processing(http_parser *parser) {
 static int message_complete(http_parser *parser) {
 	struct http_conn_info *conn_info;
 	conn_info = (struct http_conn_info*)parser->data;
-	fflush(conn_info->client_fd);
-	if (conn_info->type != 'L') {
+
+	if (conn_info->type == 'S') {
 		fclose(conn_info->client_fd);
 	}
+
 	//log_debug("Message complete: %d", conn_info->client_sd);
 	return 0;
 }
@@ -205,6 +209,8 @@ http_parser *request_processor_reset(http_parser *parser, int client_sd, lua_Sta
 	conn_info->path_size = 0;
 	conn_info->query = NULL;
 	conn_info->query_size = 0;
+	conn_info->host = NULL;
+	conn_info->host_size = 0;
 	conn_info->L = L;
 	conn_info->client_sd = client_sd;
 	conn_info->client_fd = fdopen(client_sd, "r+");

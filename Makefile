@@ -16,14 +16,14 @@ LIBS=-L/usr/local/lib -L/usr/lib -L/opt/local/lib
 
 BLOCKS_SOURCES=src/blocks/blocks.c src/blocks/process.c
 BLOCKS_SOURCES+=src/util/lua_util.c src/blocks/mailbox.c
-BLOCKS_SOURCES+=src/blocks/lua_message.c src/comm/fileio.c
+BLOCKS_SOURCES+=src/blocks/lua_message.c
 BLOCKS_OBJECTS=$(BLOCKS_SOURCES:.c=.o)
 BLOCKS_LDFLAGS=-$(SHARED_OPTION) -fPIC -lpthread $(BLOCKS_EXTRA_LDFLAGS)
 LIBRARY=blocks.so
 
 EVA_SOURCES=src/http/main.c src/util/lua_util.c src/comm/channel.c
 EVA_SOURCES+=src/http/request_processor.c 3rd-party/http-parser/http_parser.c
-EVA_SOURCES+=src/comm/fileio.c src/http/file_util.c
+EVA_SOURCES+=src/http/file_util.c
 EVA_OBJECTS=$(EVA_SOURCES:.c=.o)
 MAIN_EXEC=eva
 HTTP_PARSER_FLAGS=-DHTTP_PARSER_STRICT=0 -I3rd-party/http-parser

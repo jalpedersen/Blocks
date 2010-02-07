@@ -23,7 +23,8 @@ enum msg_type {
 	T_BOOLEAN,
 	T_FUNCTION,
 	T_TABLE,
-	T_NIL
+	T_NIL,
+	T_USERDATA
 };
 
 struct value {
@@ -73,6 +74,9 @@ int lua_message_push(lua_State *L, message_content_t *content) {
 		case T_TABLE:
 			lua_pushnil(L);
 			break;
+		case T_USERDATA:
+			lua_pushlightuserdata(L, data);
+			break;
 		default:
 			log_debug("un-handled type: %d", arg->type);
 			break;
@@ -115,6 +119,8 @@ message_content_t *lua_message_pop(lua_State *L) {
 		case LUA_TFUNCTION: type = T_FUNCTION; length = lua_objlen(L, i); break;
 		case LUA_TNIL: type = T_NIL; length = lua_objlen(L, i); break;
 		case LUA_TTABLE: type = T_TABLE; length = lua_objlen(L, i); break;
+		case LUA_TLIGHTUSERDATA:
+		case LUA_TUSERDATA: type = T_USERDATA; length = sizeof(void*); break;
 		default: type = T_NIL; length = lua_objlen(L, i); break;
 		}
 		value_length = length + sizeof(struct value); 
@@ -134,6 +140,8 @@ message_content_t *lua_message_pop(lua_State *L) {
 		arg->type = type;
 		if (type == T_BOOLEAN) {
 			*(char*)data = lua_toboolean(L, i);
+		} else if (type == T_USERDATA) {
+			*(ptrdiff_t*)data = (ptrdiff_t)lua_touserdata(L, i);
 		} else {
 			memcpy(data, lua_tolstring(L, i, &length), length);
 		}
