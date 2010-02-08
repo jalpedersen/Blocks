@@ -23,6 +23,7 @@
 #include <util/log.h>
 #include <comm/messagebus.h>
 #include "file_util.h"
+#include "httpd_conf.h"
 
 extern FILE *fdopen (int __fd, __const char *__modes);
 
@@ -36,8 +37,9 @@ struct http_conn_info {
 	FILE *client_fd;
 	int client_sd;
 	FILE *temp_file;
-	lua_State *L;
+	httpd_lua_state_t *lua;
 	char type;
+	httpd_conf_t *conf;
 };
 
 
@@ -52,30 +54,13 @@ struct http_conn_info {
 		conn_info->data_ptr = str; \
 		conn_info->data_size = new_size; \
 
-struct mime_type {
-	const char *postfix;
-	int postfix_size;
-	const char *mimetype;
-	int mimetype_size;
 
-};
-static struct mime_type json_mimetype = {"json", 4, "application/json", 16};
-static struct mime_type bin_mimetype = {"bin", 3, "application/octet-stream", 24};
 
-static struct mime_type mimetypes[] = {
-		{"html", 4, "text/html", 9},
-		{"htm", 3, "text/html", 9},
-		{"png", 3, "image/png", 9},
-		{"css", 3, "text/css", 8},
-		{"js", 2, "text/javascript", 15},
-		{"txt", 3, "text/plain", 10},
-		NULL
-};
 #define DEFAULT_ROOT "./html"
 #define RFC1123FMT "%a, %d %b %Y %H:%M:%S GMT"
 
 static int send_header(FILE *fd, int status, const char *status_msg,
-		struct mime_type *type) {
+		struct mimetype *type) {
 	char timebuffer[64];
 	time_t now;
 	now = time(NULL);
@@ -92,8 +77,8 @@ static int http_lua_eval(http_parser *parser) {
 	conn_info = (struct http_conn_info*)parser->data;
 
 	/* Send HTTP headers to client */
-	send_header(conn_info->client_fd, 200, "OK", &json_mimetype);
-	L = conn_info->L;
+	send_header(conn_info->client_fd, 200, "OK", conn_info->lua->mimetype);
+	L = conn_info->lua->L;
 	lua_settop(L, 0);
 	lua_getglobal(L, "dispatch");
 	lua_pushstring(L, conn_info->path);
@@ -109,21 +94,19 @@ static int http_lua_eval(http_parser *parser) {
 	return 0;
 }
 
-static struct mime_type *get_mimetype(const char *path) {
+static struct mimetype *get_mimetype(const char *path, httpd_conf_t *conf) {
 	char *postfix;
-	struct mime_type *t;
+	struct mimetype *t;
 	postfix = rindex(path, '.');
 	if (postfix != NULL) {
 		postfix += 1;
-		t = mimetypes;
-		while (t != NULL) {
+		for (t = conf->mimetypes; t->postfix; t++) {
 			if (strncasecmp(t->postfix, postfix, t->postfix_size) == 0) {
 				return t;
 			}
-			t += 1;
 		}
 	}
-	return &bin_mimetype;
+	return conf->default_mimetype;
 }
 
 static int http_send_file(http_parser *parser) {
@@ -139,13 +122,25 @@ static int http_send_file(http_parser *parser) {
 	log_debug("Getting: %s", file);
 	fd = fopen(file, "r");
 	if (fd == NULL) {
-		send_header(conn_info->client_fd, 404, "NOT FOUND", get_mimetype(file));
+		send_header(conn_info->client_fd, 404, "NOT FOUND",
+				get_mimetype(file, conn_info->conf));
 	} else {
-		send_header(conn_info->client_fd, 200, "OK", get_mimetype(file));
+		send_header(conn_info->client_fd, 200, "OK",
+				get_mimetype(file, conn_info->conf));
 		send_file(fd, conn_info->client_fd);
 		fclose(fd);
 	}
 	return 0;
+}
+
+static httpd_lua_state_t *lua_state = NULL;
+static httpd_lua_state_t *get_lua_state(httpd_conf_t *conf, char* path) {
+	const char *file;
+	httpd_lua_state_t *state;
+	if (lua_state == NULL) {
+		lua_state = conf->lua_states;
+	}
+	return lua_state;
 }
 
 static int start_processing(http_parser *parser) {
@@ -154,6 +149,7 @@ static int start_processing(http_parser *parser) {
 
 	if (strncmp("/l/", conn_info->path, 3) == 0) {
 		conn_info->type = 'L';
+		conn_info->lua = get_lua_state(conn_info->conf, conn_info->path);
 		http_lua_eval(parser);
 	} else {
 		//log_debug("path : %s", conn_info->path);
@@ -198,7 +194,7 @@ int on_path(http_parser *parser, const char *data, size_t size) {
 	return 0;
 }
 
-http_parser *request_processor_reset(http_parser *parser, int client_sd, lua_State *L) {
+http_parser *request_processor_reset(http_parser *parser, int client_sd, httpd_conf_t *conf) {
 	struct http_conn_info *conn_info;
 	conn_info = parser->data;
 	if (conn_info != NULL) {
@@ -213,7 +209,8 @@ http_parser *request_processor_reset(http_parser *parser, int client_sd, lua_Sta
 	conn_info->query_size = 0;
 	conn_info->host = NULL;
 	conn_info->host_size = 0;
-	conn_info->L = L;
+	conn_info->lua = NULL;
+	conn_info->conf = conf;
 	conn_info->client_sd = client_sd;
 	conn_info->client_fd = fdopen(client_sd, "r+");
 	parser->data = conn_info;

@@ -285,8 +285,7 @@ mailbox_t *process_spawn(struct thread_pool *pool, lua_State *parent) {
 	task->is_loaded = 0;
 	task->pool = pool;
 	task->state = TASK_INIT;
-	//luaL_openlibs(task->L);
-	luaopen_base(task->L);
+	luaL_openlibs(task->L);
 	luaopen_blocks(task->L);
 	mailbox = mailbox_get(task->L)->mailbox;
 	mailbox_set_task(mailbox, task);

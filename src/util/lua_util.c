@@ -33,8 +33,13 @@ int lua_eval(lua_State *L) {
 			     LUA_MULTRET);
 }
 int lua_eval_part(lua_State *L, int narg, int nres) {
-	int ret, error_index;
-	
+	int ret, error_index, function_index;
+	function_index = lua_gettop(L) - narg;
+	if ( ! lua_isfunction(L, function_index)) {
+		lua_stackdump(L);
+		log_debug("Syntax error: %s", lua_tostring(L, function_index));
+		return LUA_ERRSYNTAX;
+	}
 	error_index = lua_gettop(L) - narg;
 	lua_pushcfunction(L, traceback);
 	lua_insert(L, error_index);

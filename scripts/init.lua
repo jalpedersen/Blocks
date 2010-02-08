@@ -2,13 +2,18 @@ require ('blocks')
 require ('io')
 
 print("Starting up...");
-handler = function(path, query, sd)
-    blocks.sleep(1);
-    print ('D: sent: ', sent, ' recv: ', recv);
-    print ('path:          ' , path)
-    print ('query:         ', query)
-    print ('client socket: ', sd)
+handler_setup = function() 
+    handler = function(path, query, sd)
+        blocks.sleep(1);
+        print ('D: sent: ', sent, ' recv: ', recv);
+        print ('path:          ' , path)
+        print ('query:         ', query)
+        print ('client socket: ', sd)
+        return handler
+    end
+    return handler
 end
+mbox = blocks.spawn(handler_setup)
 
 dispatch = function(path, query, sd)
     fh = io.popen('ls');
@@ -18,7 +23,7 @@ dispatch = function(path, query, sd)
 	    sd:write(line)
     end
     sd:close()
-    local r = blocks.spawn(handler, path, query, sd);
+    print (mbox:send(path, query))
 end
 p = blocks.spawn(
 	function() print 'hi there from a different thread of execution' 

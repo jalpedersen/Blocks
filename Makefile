@@ -1,7 +1,7 @@
 SHARED_OPTION=bundle
-SHARED_OPTION=shared
-#BLOCKS_EXTRA_LDFLAGS=-llua
-EVA_EXTRA_LDFLAGS=-Wl,-E
+#SHARED_OPTION=shared
+BLOCKS_EXTRA_LDFLAGS=-llua
+#EVA_EXTRA_LDFLAGS=-Wl,-E
 
 LUA_LOC=3rd-party/lua-5.1.4
 LUA_INC=$(LUA_LOC)/src
@@ -23,7 +23,7 @@ LIBRARY=blocks.so
 
 EVA_SOURCES=src/http/main.c src/util/lua_util.c src/comm/channel.c
 EVA_SOURCES+=src/http/request_processor.c 3rd-party/http-parser/http_parser.c
-EVA_SOURCES+=src/http/file_util.c
+EVA_SOURCES+=src/http/file_util.c src/http/httpd_conf.c
 EVA_OBJECTS=$(EVA_SOURCES:.c=.o)
 MAIN_EXEC=eva
 HTTP_PARSER_FLAGS=-DHTTP_PARSER_STRICT=0 -I3rd-party/http-parser

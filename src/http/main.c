@@ -24,11 +24,11 @@
 #include <util/lua_util.h>
 #include <comm/messagebus.h>
 #include "request_processor.h"
+#include "httpd_conf.h"
 #include <pthread.h>
 
-#define PORT 8888
+static httpd_conf_t *conf;
 
-lua_State *L = NULL;
 
 static http_parser *get_http_parser() {
 	http_parser *parser;
@@ -47,7 +47,7 @@ int dispatch(int client_sd, size_t size, int position, void *data, void **aux_da
 int msg_start(int client_sd, void **aux_data) {
 	http_parser *parser = get_http_parser();
 	log_debug("Starting %d", client_sd);
-	*aux_data = request_processor_reset(parser, client_sd, L);
+	*aux_data = request_processor_reset(parser, client_sd, conf);
 	return 0;
 }
 
@@ -59,25 +59,15 @@ int msg_end(int client_sd, void **aux_data) {
 }
 
 int main(int argc, char **argv) {
-	int port;
 	int is_alive;
 	mb_handler_t handler;
 	mb_channel_t *tcp_channel;
-	L = luaL_newstate();
-	luaL_openlibs(L);
 
-	luaL_loadfile(L, "scripts/init.lua");
-	lua_eval(L);
-	/* Load configuration */
-	lua_getglobal(L, "port");
-	if (lua_isnumber(L, -1)) {
-		port = lua_tointeger(L, -1);
-	} else {
-		port = PORT;
-	}
-	tcp_channel = mb_channel_bind_port(port);
+	conf = httpd_conf_load("scripts/eva.cfg");
+
+	tcp_channel = mb_channel_bind_port(conf->port);
 	is_alive = tcp_channel != NULL;
-
+	log_info("Listening on: %d", conf->port);
 	/* setup handlers */
 	handler.part_cb = dispatch;
 	handler.begin_cb = msg_start;
@@ -86,7 +76,6 @@ int main(int argc, char **argv) {
 	while (is_alive) {
 		mb_channel_receive(tcp_channel, &handler);
 	}
-	lua_close(L);
 
 	if (tcp_channel != NULL) {
 		mb_channel_destroy(tcp_channel);
