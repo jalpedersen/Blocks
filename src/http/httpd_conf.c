@@ -11,10 +11,13 @@
 #include <lauxlib.h>
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <util/log.h>
 #include <util/lua_util.h>
 #define PORT 8888
+
+char *strndup(const char *s, size_t n);
 
 static struct mimetype default_mimetypes[] = {
 		{"html", 4, "text/html", 9},
@@ -52,7 +55,7 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 			file = luaL_checkstring(L, -1);
 			lua_pop(L, 1);
 			size = lua_objlen(L, -1);
-			states[i].filename = strdup(file);
+			states[i].filename = strndup(file, size);
 			states[i].L = luaL_newstate();
 			luaL_openlibs(states[i].L);
 			luaL_loadfile(states[i].L, file);
@@ -69,8 +72,7 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 			mimetype = luaL_optstring(L,-1, json_mimetype.mimetype);
 			if (mimetype != json_mimetype.mimetype) {
 				size = lua_objlen(L, -1);
-				states[i].mimetype = malloc(size + 1);
-				strncpy((void*)states[i].mimetype, mimetype, size);
+				states[i].mimetype = strndup(mimetype, size);
 			} else {
 				states[i].mimetype = mimetype;
 			}
@@ -80,7 +82,7 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 			lua_getfield(L, -1, "pattern");
 			pattern = luaL_checkstring(L, -1);
 			size = lua_objlen(L, -1);
-			states[i].pattern = strdup(pattern);
+			states[i].pattern = strndup(pattern, size);
 			states[i].pattern_size = size;
 			lua_pop(L, 1);
 			log_debug("%s is serving %s on %s(%d)", file, states[i].mimetype, states[i].pattern, size);
@@ -138,10 +140,10 @@ httpd_conf_t *httpd_conf_load(const char *file) {
 				value_length = lua_objlen(L, -1);
 				key = lua_tostring(L, -2);
 				value = lua_tostring(L, -1);
-				mimetypes[i].mimetype = strdup(value);
+				mimetypes[i].mimetype = strndup(value, value_length);
 				mimetypes[i].mimetype_size = value_length;
 
-				mimetypes[i].postfix = strdup(key);
+				mimetypes[i].postfix = strndup(key, key_length);
 				mimetypes[i].postfix_size = key_length;
 			} else {
 				mimetypes[i].postfix = NULL;
