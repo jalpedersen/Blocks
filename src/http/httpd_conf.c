@@ -48,11 +48,17 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 		states = malloc(sizeof(httpd_lua_state_t) * (length + 1));
 		lua_pushnil(L);
 		for (i=0; i < length; i++) {
+			states[i].pattern = NULL;
 			if (lua_next(L, -2) == 0) {
 				break;
 			}
 			lua_getfield(L, -1, "script");
-			file = luaL_checkstring(L, -1);
+			if ( ! lua_isstring(L, -1)) {
+				log_error("No script given for entry no. %d", i);
+				lua_pop(L, 2);
+				continue;
+			}
+			file = lua_tostring(L, -1);
 			lua_pop(L, 1);
 			size = lua_objlen(L, -1);
 			states[i].filename = strndup(file, size);
@@ -61,31 +67,43 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 			luaL_loadfile(states[i].L, file);
 
 			if (lua_eval(states[i].L) != 0) {
-				states[i].pattern = NULL;
 				lua_close(states[i].L);
+				free((void*)states[i].filename);
 				states[i].L = NULL;
 				log_error("Failed loading %s", file);
+				lua_pop(L, 1);
 				continue;
 			}
 
 			lua_getfield(L, -1, "mimetype");
 			mimetype = luaL_optstring(L,-1, json_mimetype.mimetype);
-			if (mimetype != json_mimetype.mimetype) {
+			if (&mimetype != &json_mimetype.mimetype) {
 				size = lua_objlen(L, -1);
 				states[i].mimetype = strndup(mimetype, size);
 			} else {
 				states[i].mimetype = mimetype;
 			}
-		
 			lua_pop(L, 1);
 
 			lua_getfield(L, -1, "pattern");
-			pattern = luaL_checkstring(L, -1);
+			if ( ! lua_isstring(L, -1)) {
+				log_error("No pattern for script entry no. %d (%s)", i, file);
+				free((void*)states[i].filename);
+				if (&states[i].mimetype != &mimetype) {
+					free((void*)states[i].mimetype);
+				}
+				lua_close(states[i].L);
+				states[i].L = NULL;
+				lua_pop(L, 2);
+				continue;
+			}
+			pattern = lua_tostring(L, -1);
 			size = lua_objlen(L, -1);
 			states[i].pattern = strndup(pattern, size);
 			states[i].pattern_size = size;
 			lua_pop(L, 1);
-			log_debug("%s is serving %s on %s(%d)", file, states[i].mimetype, states[i].pattern, size);
+			log_debug("%s is serving %s on %s", file, states[i].mimetype, states[i].pattern);
+
 			lua_pop(L, 1);
 		}
 		states[i].pattern = NULL;
