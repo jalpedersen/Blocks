@@ -8,7 +8,7 @@ LUA_INC=$(LUA_LOC)/src
 LUA_STATIC_LIB=$(LUA_LOC)/src/liblua.a
 
 CC=gcc
-CFLAGS=-std=c99 -Werror -pedantic -fPIC -ggdb -Os
+CFLAGS=-std=c99 -Werror -pedantic -fPIC -ggdb #-Os
 
 INCLUDE=-Isrc -I$(LUA_INC) -I/usr/local/include -I/opt/local/include -I/usr/include
 LIBS=-L/usr/local/lib -L/usr/lib -L/opt/local/lib

@@ -33,17 +33,63 @@ static struct mimetype bin_mimetype = {"bin", 3, "application/octet-stream", 24}
 static struct mimetype json_mimetype = {"json", 4, "application/json", 16};
 
 static int load_scripts(httpd_conf_t *conf, lua_State *L) {
+	int i, top, length, size;
+	const char *file, *mimetype, *pattern;
 	httpd_lua_state_t *states;
-	states = malloc(sizeof(httpd_lua_state_t) * (1 + 1));
-	states[0].filename = "scripts/init.lua";
-	states[0].L = luaL_newstate();
-	luaL_openlibs(states[0].L);
-	luaL_loadfile(states[0].L, states[0].filename);
-	lua_eval(states[0].L);
-	states[0].mimetype = &json_mimetype;
-	states[0].pattern = "/l/";
-	states[1].filename = NULL;
-	conf->lua_states = states;
+	top = lua_gettop(L);
+
+	lua_getglobal(L, "scripts");
+	conf->lua_states = NULL;
+	if (lua_istable(L, -1)) {
+		length = lua_objlen(L, -1);
+		states = malloc(sizeof(httpd_lua_state_t) * (length + 1));
+		lua_pushnil(L);
+		for (i=0; i < length; i++) {
+			if (lua_next(L, -2) == 0) {
+				break;
+			}
+			lua_getfield(L, -1, "script");
+			file = luaL_checkstring(L, -1);
+			lua_pop(L, 1);
+			size = lua_objlen(L, -1);
+			states[i].filename = strdup(file);
+			states[i].L = luaL_newstate();
+			luaL_openlibs(states[i].L);
+			luaL_loadfile(states[i].L, file);
+
+			if (lua_eval(states[i].L) != 0) {
+				states[i].pattern = NULL;
+				lua_close(states[i].L);
+				states[i].L = NULL;
+				log_error("Failed loading %s", file);
+				continue;
+			}
+
+			lua_getfield(L, -1, "mimetype");
+			mimetype = luaL_optstring(L,-1, json_mimetype.mimetype);
+			if (mimetype != json_mimetype.mimetype) {
+				size = lua_objlen(L, -1);
+				states[i].mimetype = malloc(size + 1);
+				strncpy((void*)states[i].mimetype, mimetype, size);
+			} else {
+				states[i].mimetype = mimetype;
+			}
+		
+			lua_pop(L, 1);
+
+			lua_getfield(L, -1, "pattern");
+			pattern = luaL_checkstring(L, -1);
+			size = lua_objlen(L, -1);
+			states[i].pattern = strdup(pattern);
+			states[i].pattern_size = size;
+			lua_pop(L, 1);
+			log_debug("%s is serving %s on %s(%d)", file, states[i].mimetype, states[i].pattern, size);
+			lua_pop(L, 1);
+		}
+		states[i].pattern = NULL;
+		conf->lua_states = states;
+	}
+	lua_settop(L, top);
 	return 0;
 }
 
@@ -74,8 +120,6 @@ httpd_conf_t *httpd_conf_load(const char *file) {
 	if (lua_istable(L, -1)) {
 		int i, top;
 		mimetype_length = lua_objlen(L, -1);
-		log_debug("mimetypes: %d", mimetype_length);
-
 		mimetypes = malloc(sizeof(httpd_conf_t) * (mimetype_length + 1));
 
 		lua_pushnil(L); /*First key*/
@@ -89,12 +133,15 @@ httpd_conf_t *httpd_conf_load(const char *file) {
 				const char *key;
 				const char *value;
 				int key_length, value_length;
+
+				key_length = lua_objlen(L, -2);
+				value_length = lua_objlen(L, -1);
 				key = lua_tostring(L, -2);
 				value = lua_tostring(L, -1);
-				log_debug("%s: %s", key, value);
-				mimetypes[i].mimetype = value;
+				mimetypes[i].mimetype = strdup(value);
 				mimetypes[i].mimetype_size = value_length;
-				mimetypes[i].postfix = key;
+
+				mimetypes[i].postfix = strdup(key);
 				mimetypes[i].postfix_size = key_length;
 			} else {
 				mimetypes[i].postfix = NULL;

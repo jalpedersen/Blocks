@@ -60,14 +60,14 @@ struct http_conn_info {
 #define RFC1123FMT "%a, %d %b %Y %H:%M:%S GMT"
 
 static int send_header(FILE *fd, int status, const char *status_msg,
-		struct mimetype *type) {
+		const char *mimetype) {
 	char timebuffer[64];
 	time_t now;
 	now = time(NULL);
 	strftime(timebuffer, sizeof(timebuffer), RFC1123FMT, gmtime(&now));
 
 	return fprintf(fd, "HTTP/1.1 %d %s\nServer: Eva 1.0\nConnection: Close\nDate: %s\nContent-Type: %s\r\n\n",
-			status, status_msg, timebuffer, type->mimetype);
+			status, status_msg, timebuffer, mimetype);
 
 }
 
@@ -94,7 +94,7 @@ static int http_lua_eval(http_parser *parser) {
 	return 0;
 }
 
-static struct mimetype *get_mimetype(const char *path, httpd_conf_t *conf) {
+static const char *get_mimetype(const char *path, httpd_conf_t *conf) {
 	char *postfix;
 	struct mimetype *t;
 	postfix = rindex(path, '.');
@@ -102,11 +102,11 @@ static struct mimetype *get_mimetype(const char *path, httpd_conf_t *conf) {
 		postfix += 1;
 		for (t = conf->mimetypes; t->postfix; t++) {
 			if (strncasecmp(t->postfix, postfix, t->postfix_size) == 0) {
-				return t;
+				return t->mimetype;
 			}
 		}
 	}
-	return conf->default_mimetype;
+	return conf->default_mimetype->mimetype;
 }
 
 static int http_send_file(http_parser *parser) {
@@ -133,23 +133,28 @@ static int http_send_file(http_parser *parser) {
 	return 0;
 }
 
-static httpd_lua_state_t *lua_state = NULL;
-static httpd_lua_state_t *get_lua_state(httpd_conf_t *conf, char* path) {
-	const char *file;
+static httpd_lua_state_t *get_lua_state(const httpd_conf_t *conf, const char* path) {
 	httpd_lua_state_t *state;
-	if (lua_state == NULL) {
-		lua_state = conf->lua_states;
+	state = conf->lua_states;
+	while (state != NULL && state->pattern != NULL) {
+		if (strncmp(state->pattern, path, state->pattern_size) == 0) {
+			return state;
+		}
+		state += 1;
 	}
-	return lua_state;
+	return NULL;
 }
 
 static int start_processing(http_parser *parser) {
 	struct http_conn_info *conn_info;
+	httpd_lua_state_t *lua_state;
 	conn_info = (struct http_conn_info*)parser->data;
 
-	if (strncmp("/l/", conn_info->path, 3) == 0) {
+	lua_state = get_lua_state(conn_info->conf, conn_info->path);
+	log_debug("%s", conn_info->path);
+	if (lua_state != NULL) {
 		conn_info->type = 'L';
-		conn_info->lua = get_lua_state(conn_info->conf, conn_info->path);
+		conn_info->lua = lua_state;
 		http_lua_eval(parser);
 	} else {
 		//log_debug("path : %s", conn_info->path);

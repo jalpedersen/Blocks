@@ -17,10 +17,11 @@ typedef struct mimetype {
 } mimetype_t;
 
 typedef struct httpd_lua_state {
-	lua_State *L;
 	const char *pattern;
+	lua_State *L;
+	size_t pattern_size;
 	const char *filename;
-	mimetype_t *mimetype;
+	const char *mimetype;
 } httpd_lua_state_t;
 
 typedef struct httpd_conf {
