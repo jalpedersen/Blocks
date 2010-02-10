@@ -13,8 +13,26 @@
 
 char *get_full_path(char *path_buffer, const char* path,
 					size_t path_length, const char *file, size_t file_length) {
+	int i, depth;
+	char *newfile;
 	strncpy(path_buffer, path, path_length);
 	strncpy(path_buffer+path_length, file, file_length);
+	depth = 0;
+	newfile = path_buffer + path_length;
+	for (i = 0 ; i < file_length; i++) {
+		if (newfile[i] == '.'
+				&& newfile[i+1] == '.') {
+			if (depth > 0) {
+				newfile[i] = '/';
+				newfile[i+1] = '/';
+				i += 1;
+				continue;
+			}
+		}
+		if (newfile[i] == '/') {
+			depth += 1;
+		}
+	}
 	path_buffer[path_length + file_length] = '\0';
 	return path_buffer;
 }
