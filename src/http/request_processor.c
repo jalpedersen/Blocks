@@ -156,9 +156,12 @@ static int http_send_file(http_parser *parser) {
 			conn_info->path, conn_info->path_size);
 	fd = fopen(file, "r");
 	if (fd == NULL) {
+		const char *err = "<html><head><title>Error</title></head><body>%s</body></html>";
+		const char *err_404 = "<pre>File not found</pre>";
 		log_debug("404 %s", file);
 		send_header(conn_info->client_fd, 404, "NOT FOUND",
-				get_mimetype(file, conn_info->conf));
+				"text/html");
+		fprintf(conn_info->client_fd, err, err_404);
 	} else {
 		log_debug("Getting: %s", file);
 		send_header(conn_info->client_fd, 200, "OK",
