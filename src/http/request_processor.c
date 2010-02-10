@@ -137,6 +137,7 @@ static httpd_lua_state_t *get_lua_state(const httpd_conf_t *conf, const char* pa
 	httpd_lua_state_t *state;
 	state = conf->lua_states;
 	while (state != NULL && state->pattern != NULL) {
+		log_debug("pattern: %s (%d) vs %s", state->pattern, state->pattern_size, path);
 		if (strncmp(state->pattern, path, state->pattern_size) == 0) {
 			return state;
 		}
