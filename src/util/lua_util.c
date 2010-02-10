@@ -36,8 +36,8 @@ int lua_eval_part(lua_State *L, int narg, int nres) {
 	int ret, error_index, function_index;
 	function_index = lua_gettop(L) - narg;
 	if ( ! lua_isfunction(L, function_index)) {
-		log_error("Syntax error: %s", lua_tostring(L, function_index));
-		return LUA_ERRSYNTAX;
+		log_error("Runtime error: %s", lua_tostring(L, function_index));
+		return LUA_ERRRUN;
 	}
 	error_index = lua_gettop(L) - narg;
 	lua_pushcfunction(L, traceback);

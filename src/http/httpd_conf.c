@@ -52,28 +52,18 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 			if (lua_next(L, -2) == 0) {
 				break;
 			}
-			lua_getfield(L, -1, "script");
+
+			lua_getfield(L, -1, "pattern");
 			if ( ! lua_isstring(L, -1)) {
-				log_error("No script given for entry no. %d", i);
+				log_error("No pattern for entry no. %d", i);
 				lua_pop(L, 2);
 				continue;
 			}
-			file = lua_tostring(L, -1);
-			lua_pop(L, 1);
+			pattern = lua_tostring(L, -1);
 			size = lua_objlen(L, -1);
-			states[i].filename = strndup(file, size);
-			states[i].L = luaL_newstate();
-			luaL_openlibs(states[i].L);
-			luaL_loadfile(states[i].L, file);
-
-			if (lua_eval(states[i].L) != 0) {
-				lua_close(states[i].L);
-				free((void*)states[i].filename);
-				states[i].L = NULL;
-				log_error("Failed loading %s", file);
-				lua_pop(L, 1);
-				continue;
-			}
+			states[i].pattern = strndup(pattern, size);
+			states[i].pattern_size = size;
+			lua_pop(L, 1);
 
 			lua_getfield(L, -1, "mimetype");
 			mimetype = luaL_optstring(L,-1, json_mimetype.mimetype);
@@ -85,25 +75,35 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 			}
 			lua_pop(L, 1);
 
-			lua_getfield(L, -1, "pattern");
+			lua_getfield(L, -1, "script");
 			if ( ! lua_isstring(L, -1)) {
-				log_error("No pattern for script entry no. %d (%s)", i, file);
-				free((void*)states[i].filename);
-				if (&states[i].mimetype != &mimetype) {
-					free((void*)states[i].mimetype);
-				}
-				lua_close(states[i].L);
-				states[i].L = NULL;
+				log_error("No script given for pattern %s (entry no. %d)", pattern, i);
 				lua_pop(L, 2);
 				continue;
 			}
-			pattern = lua_tostring(L, -1);
+			file = lua_tostring(L, -1);
 			size = lua_objlen(L, -1);
-			states[i].pattern = strndup(pattern, size);
-			states[i].pattern_size = size;
 			lua_pop(L, 1);
-			log_debug("%s is serving %s on %s", file, states[i].mimetype, states[i].pattern);
+			states[i].filename = strndup(file, size);
+			states[i].L = luaL_newstate();
+			luaL_openlibs(states[i].L);
+			luaL_loadfile(states[i].L, file);
 
+			if (lua_eval(states[i].L) != 0) {
+				lua_close(states[i].L);
+				free((void*)states[i].filename);
+				states[i].L = NULL;
+				if (&states[i].mimetype != &mimetype) {
+					free((void*)states[i].mimetype);
+				}
+				free((void*)states[i].pattern);
+				states[i].pattern = NULL;
+				log_error("Failed loading %s", file);
+				lua_pop(L, 1);
+				continue;
+			}
+
+			log_debug("%s is serving %s on %s", file, states[i].mimetype, states[i].pattern);
 			lua_pop(L, 1);
 		}
 		states[i].pattern = NULL;
