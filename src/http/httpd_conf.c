@@ -16,6 +16,7 @@
 #include <util/log.h>
 #include <util/lua_util.h>
 #define PORT 8888
+#define DEFAULT_STATE_SIZE 3
 
 char *strdup(const char *s);
 
@@ -37,6 +38,8 @@ static struct mimetype json_mimetype = {"json", 4, "application/json", 16};
 
 static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 	int i, entry, top, length, size;
+	int state_size;
+	lua_State *new_L;
 	const char *file, *mimetype, *pattern;
 	httpd_lua_state_t *states;
 	top = lua_gettop(L);
@@ -85,14 +88,14 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 			size = lua_objlen(L, -1);
 			lua_pop(L, 1);
 			states[i].filename = strdup(file);
-			states[i].L = luaL_newstate();
-			luaL_openlibs(states[i].L);
-			luaL_loadfile(states[i].L, file);
+			new_L = luaL_newstate();
 
-			if (lua_eval(states[i].L) != 0) {
-				lua_close(states[i].L);
+			luaL_openlibs(new_L);
+			luaL_loadfile(new_L, file);
+
+			if (lua_eval(new_L) != 0) {
+				lua_close(new_L);
 				free((void*)states[i].filename);
-				states[i].L = NULL;
 				if (states[i].mimetype != mimetype) {
 					free((void*)states[i].mimetype);
 				}
@@ -101,6 +104,11 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 				lua_pop(L, 1);
 				continue;
 			}
+			state_size = DEFAULT_STATE_SIZE;
+			states[i].idle_stack_size = state_size;
+			states[i].idle_state_top = 0;
+			states[i].idle_states = malloc(sizeof(lua_State*) * state_size);
+			states[i].idle_states[0] = new_L;
 
 			log_debug("%s is serving %s on %s", file, states[i].mimetype, states[i].pattern);
 			i += 1;

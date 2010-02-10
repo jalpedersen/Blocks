@@ -71,6 +71,35 @@ static int send_header(FILE *fd, int status, const char *status_msg,
 
 }
 
+static lua_State *get_lua_state(httpd_lua_state_t *state) {
+	lua_State *L;
+	int stack_top;
+	stack_top = state->idle_state_top;
+	if (stack_top < 0) {
+		log_debug("Creating new state");
+		L = luaL_newstate();
+		luaL_openlibs(L);
+		luaL_loadfile(L, state->filename);
+		lua_eval(L);
+	} else {
+		L = state->idle_states[stack_top];
+		state->idle_state_top -= 1;
+	}
+	return L;
+}
+
+static void return_lua_state(httpd_lua_state_t *state, lua_State *L) {
+	int stack_top;
+	stack_top = state->idle_state_top;
+	if (stack_top-1 < state->idle_stack_size) {
+		stack_top += 1;
+		state->idle_states[stack_top] = L;
+		state->idle_state_top = stack_top;
+	} else {
+		lua_close(L);
+	}
+}
+
 static int http_lua_eval(http_parser *parser) {
 	struct http_conn_info *conn_info;
 	lua_State *L;
@@ -78,7 +107,7 @@ static int http_lua_eval(http_parser *parser) {
 
 	/* Send HTTP headers to client */
 	send_header(conn_info->client_fd, 200, "OK", conn_info->lua->mimetype);
-	L = conn_info->lua->L;
+	L = get_lua_state(conn_info->lua);
 	lua_settop(L, 0);
 	lua_getglobal(L, "dispatch");
 	lua_pushstring(L, conn_info->path);
@@ -91,6 +120,7 @@ static int http_lua_eval(http_parser *parser) {
 	default: lua_pushstring(L, "UNKNOWN");
 	}
 	lua_eval(L);
+	return_lua_state(conn_info->lua, L);
 	return 0;
 }
 
@@ -133,7 +163,7 @@ static int http_send_file(http_parser *parser) {
 	return 0;
 }
 
-static httpd_lua_state_t *get_lua_state(const httpd_conf_t *conf, const char* path) {
+static httpd_lua_state_t *get_script(const httpd_conf_t *conf, const char* path) {
 	httpd_lua_state_t *state;
 	state = conf->lua_states;
 	while (state != NULL && state->pattern != NULL) {
@@ -151,7 +181,7 @@ static int start_processing(http_parser *parser) {
 	httpd_lua_state_t *lua_state;
 	conn_info = (struct http_conn_info*)parser->data;
 
-	lua_state = get_lua_state(conn_info->conf, conn_info->path);
+	lua_state = get_script(conn_info->conf, conn_info->path);
 	log_debug("%s", conn_info->path);
 	if (lua_state != NULL) {
 		conn_info->type = 'L';

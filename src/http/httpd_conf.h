@@ -18,8 +18,10 @@ typedef struct mimetype {
 
 typedef struct httpd_lua_state {
 	const char *pattern;
-	lua_State *L;
 	size_t pattern_size;
+	int idle_state_top;
+	int idle_stack_size;
+	lua_State **idle_states;
 	const char *filename;
 	const char *mimetype;
 } httpd_lua_state_t;
