@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <errno.h>
 #include <time.h>
 #include <lua.h>
@@ -145,8 +146,10 @@ static int http_send_file(http_parser *parser) {
 	int r_bytes, w_bytes;
 	FILE *fd;
 	const char *file;
-
+	struct stat st;
+	int file_ok;
 	conn_info = (struct http_conn_info*)parser->data;
+
 	char buffer[conn_info->path_size + sizeof(default_file_location)
 	            +sizeof(default_file) + 1];
 
@@ -154,20 +157,25 @@ static int http_send_file(http_parser *parser) {
 			default_file_location, sizeof(default_file_location)-1,
 			default_file, sizeof(default_file)-1,
 			conn_info->path, conn_info->path_size);
-	fd = fopen(file, "r");
-	if (fd == NULL) {
+	if (stat(file, &st) >= 0 && S_ISREG(st.st_mode)) {
+		file_ok = 1;
+	} else {
+		file_ok = 0;
+	}
+	if (file_ok) {
+		fd = fopen(file, "r");
+		log_debug("Getting: %s", file);
+		send_header(conn_info->client_fd, 200, "OK",
+				get_mimetype(file, conn_info->conf));
+		send_file(fd, conn_info->client_fd);
+		fclose(fd);
+	} else {
 		const char *err = "<html><head><title>Error</title></head><body>%s</body></html>";
 		const char *err_404 = "<pre>File not found</pre>";
 		log_debug("404 %s", file);
 		send_header(conn_info->client_fd, 404, "NOT FOUND",
 				"text/html");
 		fprintf(conn_info->client_fd, err, err_404);
-	} else {
-		log_debug("Getting: %s", file);
-		send_header(conn_info->client_fd, 200, "OK",
-				get_mimetype(file, conn_info->conf));
-		send_file(fd, conn_info->client_fd);
-		fclose(fd);
 	}
 	return 0;
 }
