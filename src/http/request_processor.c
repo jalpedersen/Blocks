@@ -27,6 +27,10 @@
 
 extern FILE *fdopen (int __fd, __const char *__modes);
 
+#define default_file "index.html"
+#define default_file_location "./html/"
+#define RFC1123FMT "%a, %d %b %Y %H:%M:%S GMT"
+
 struct http_conn_info {
 	char *path;
 	int path_size;
@@ -55,10 +59,6 @@ struct http_conn_info {
 		conn_info->data_size = new_size; \
 
 
-
-#define DEFAULT_ROOT "./html"
-#define RFC1123FMT "%a, %d %b %Y %H:%M:%S GMT"
-
 static int send_header(FILE *fd, int status, const char *status_msg,
 		const char *mimetype) {
 	char timebuffer[64];
@@ -66,7 +66,8 @@ static int send_header(FILE *fd, int status, const char *status_msg,
 	now = time(NULL);
 	strftime(timebuffer, sizeof(timebuffer), RFC1123FMT, gmtime(&now));
 
-	return fprintf(fd, "HTTP/1.1 %d %s\nServer: Eva 1.0\nConnection: Close\nDate: %s\nContent-Type: %s\r\n\n",
+	return fprintf(fd,
+			"HTTP/1.1 %d %s\nServer: Eva 1.0\nConnection: close\nContent-Coding: identity\nDate: %s\nContent-Type: %s\r\n\r\n",
 			status, status_msg, timebuffer, mimetype);
 
 }
@@ -146,15 +147,20 @@ static int http_send_file(http_parser *parser) {
 	const char *file;
 
 	conn_info = (struct http_conn_info*)parser->data;
-	char buffer[conn_info->path_size + 6 + 1];
+	char buffer[conn_info->path_size + sizeof(default_file_location)
+	            +sizeof(default_file) + 1];
 
-	file = get_full_path(buffer, "./html", 6, conn_info->path, conn_info->path_size);
-	log_debug("Getting: %s", file);
+	file = get_full_path(buffer,
+			default_file_location, sizeof(default_file_location)-1,
+			default_file, sizeof(default_file)-1,
+			conn_info->path, conn_info->path_size);
 	fd = fopen(file, "r");
 	if (fd == NULL) {
+		log_debug("404 %s", file);
 		send_header(conn_info->client_fd, 404, "NOT FOUND",
 				get_mimetype(file, conn_info->conf));
 	} else {
+		log_debug("Getting: %s", file);
 		send_header(conn_info->client_fd, 200, "OK",
 				get_mimetype(file, conn_info->conf));
 		send_file(fd, conn_info->client_fd);
@@ -196,6 +202,7 @@ static int start_processing(http_parser *parser) {
 static int message_complete(http_parser *parser) {
 	struct http_conn_info *conn_info;
 	conn_info = (struct http_conn_info*)parser->data;
+
 
 	if (conn_info->type == 'S') {
 		fclose(conn_info->client_fd);

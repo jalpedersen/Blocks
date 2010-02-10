@@ -11,8 +11,10 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-char *get_full_path(char *path_buffer, const char* path,
-					size_t path_length, const char *file, size_t file_length) {
+char *get_full_path(char *path_buffer,
+		const char* path, size_t path_length,
+		const char* default_file, size_t default_file_length,
+		const char *file, size_t file_length) {
 	int i, depth;
 	char *newfile;
 	strncpy(path_buffer, path, path_length);
@@ -33,7 +35,17 @@ char *get_full_path(char *path_buffer, const char* path,
 			depth += 1;
 		}
 	}
-	path_buffer[path_length + file_length] = '\0';
+
+	if (file_length > 0
+			&& newfile[file_length -1] == '/') {
+		strncpy(newfile + file_length,
+				default_file, default_file_length);
+		path_buffer[path_length + file_length +
+		            default_file_length] = '\0';
+	} else {
+		path_buffer[path_length + file_length] = '\0';
+	}
+
 	return path_buffer;
 }
 int send_file(FILE *src, FILE *dst) {
