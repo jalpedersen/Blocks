@@ -232,10 +232,71 @@ static int copy_function (lua_State *src, lua_State *dst, int index) {
   return 1;
 }
 
-static void copy_stack(lua_State *src, lua_State *dst) {
-	int src_top, i, type;
+static void copy_value(lua_State *src, lua_State *dst, int index);
+
+static void copy_table(lua_State *src, lua_State *dst, int index) {
+	int type;
+	lua_pushnil(src);
+	lua_newtable(dst);
+	while (lua_next(src, index) != 0) {
+		type = lua_type(src, -1);
+		if (lua_isnumber(src, -2)) {
+			lua_pushinteger(dst, lua_tointeger(src, -2));
+		} else {
+			lua_pushstring(dst, lua_tostring(src, -2));
+		}
+		if (type == LUA_TTABLE) {
+			copy_value(src, dst, lua_gettop(src));
+		} else {
+			copy_value(src, dst, -1);
+		}
+		lua_settable(dst, -3);
+		lua_pop(src, 1);
+	}
+}
+
+static void copy_value(lua_State *src, lua_State *dst, int index) {
+	int type;
 	size_t len;
 	const char *str;
+
+	type = lua_type(src, index);
+	switch (type) {
+	case LUA_TFUNCTION:
+		copy_function(src, dst, index);
+		break;
+	case LUA_TNUMBER:
+		lua_pushnumber(dst, lua_tonumber(src, index));
+		break;
+	case LUA_TBOOLEAN:
+		lua_pushboolean(dst, lua_toboolean(src, index));
+		break;
+	case LUA_TNIL:
+		lua_pushnil(dst);
+		break;
+	case LUA_TNONE:
+		break;
+	case LUA_TSTRING:
+		len = lua_objlen(src, index);
+		str = lua_tolstring(src, index, &len);
+		lua_pushlstring(dst, str, len);
+		break;
+	case LUA_TUSERDATA:
+	case LUA_TLIGHTUSERDATA:
+		lua_pushlightuserdata(dst, lua_touserdata(src, index));
+		break;
+	case LUA_TTABLE:
+		copy_table(src, dst, index);
+		break;
+	default:
+		lua_pushnil(dst);
+		log_debug("type: %s", lua_typename(src, type));
+		break;
+	}
+}
+
+static void copy_stack(lua_State *src, lua_State *dst) {
+	int src_top, i;
 
 	if ( ! lua_isfunction(src, 1)) {
 		luaL_error(src, "Argument 1 must be a function. Was %s", lua_typename(src, 1));
@@ -243,36 +304,7 @@ static void copy_stack(lua_State *src, lua_State *dst) {
 
 	src_top = lua_gettop(src);
 	for (i = 1; i <= src_top; i++) {
-		type = lua_type(src, i);
-		switch (type) {
-		case LUA_TFUNCTION:
-			copy_function(src, dst, i);
-			break;
-		case LUA_TNUMBER:
-			lua_pushnumber(dst, lua_tonumber(src, i));
-			break;
-		case LUA_TBOOLEAN:
-			lua_pushboolean(dst, lua_toboolean(src, i));
-			break;
-		case LUA_TNIL:
-			lua_pushnil(dst);
-			break;
-		case LUA_TNONE:
-			break;
-		case LUA_TSTRING:
-			len = lua_objlen(src, i);
-			str = lua_tolstring(src, i, &len);
-			lua_pushlstring(dst, str, len);
-			break;
-		case LUA_TUSERDATA:
-		case LUA_TLIGHTUSERDATA:
-			lua_pushlightuserdata(dst, lua_touserdata(src, i));
-			break;
-		default:
-			lua_pushnil(dst);
-			log_debug("type: %s", lua_typename(src, type));
-			break;
-		}
+                copy_value(src, dst, i);
 	}
 }
 

@@ -1,14 +1,14 @@
 SHARED_OPTION=bundle
-#SHARED_OPTION=shared
-BLOCKS_EXTRA_LDFLAGS=-llua
-#EVA_EXTRA_LDFLAGS=-Wl,-E
+SHARED_OPTION=shared
+#BLOCKS_EXTRA_LDFLAGS=-llua
+EVA_EXTRA_LDFLAGS=-Wl,-E
 
 LUA_LOC=3rd-party/lua-5.1.4
 LUA_INC=$(LUA_LOC)/src
 LUA_STATIC_LIB=$(LUA_LOC)/src/liblua.a
 
 CC=gcc
-CFLAGS=-std=c99 -Werror -pedantic -fPIC -ggdb -Os
+CFLAGS=-std=c99 -Werror -pedantic -fPIC -Os -ggdb
 
 INCLUDE=-Isrc -I$(LUA_INC) -I/usr/local/include -I/opt/local/include -I/usr/include
 LIBS=-L/usr/local/lib -L/usr/lib -L/opt/local/lib
