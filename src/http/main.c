@@ -29,14 +29,37 @@
 
 static httpd_conf_t *conf;
 
+static http_parser **parser_pool;
+static int parser_stack_top;
+static int parser_pool_size;
 
+static void init_http_parser_pool(int size) {
+	int i;
+	http_parser *parser;
+	parser_pool_size = size;
+	parser_pool = malloc(sizeof(http_parser*) * size);
+	parser_stack_top = 0;
+	for (i = 0; i < size; i++) {
+		parser_pool[i] = request_processor_init();
+	}
+}
 static http_parser *get_http_parser() {
 	http_parser *parser;
-	parser = request_processor_init();
+	if (parser_pool_size > parser_stack_top) {
+		parser = parser_pool[parser_stack_top];
+		parser_stack_top += 1;
+	} else {
+		parser = request_processor_init();
+	}
 	return parser;
 }
 static void release_http_parser(http_parser *parser) {
-	request_processor_destroy(parser);
+	parser_stack_top -= 1;
+	if (parser_pool_size > parser_stack_top) {
+		parser_pool[parser_stack_top] = parser;
+	} else {
+		request_processor_destroy(parser);
+	} 
 }
 
 int dispatch(int client_sd, size_t size, int position, void *data, void **aux_data) {
@@ -72,6 +95,7 @@ int main(int argc, char **argv) {
 	handler.part_cb = dispatch;
 	handler.begin_cb = msg_start;
 	handler.end_cb = msg_end;
+	init_http_parser_pool(3);
 
 	while (is_alive) {
 		mb_channel_receive(tcp_channel, &handler);
