@@ -32,10 +32,10 @@ static httpd_conf_t *conf;
 static http_parser **parser_pool;
 static int parser_stack_top;
 static int parser_pool_size;
+static http_parser_settings *parser_settings;
 
 static void init_http_parser_pool(int size) {
 	int i;
-	http_parser *parser;
 	parser_pool_size = size;
 	parser_pool = malloc(sizeof(http_parser*) * size);
 	parser_stack_top = 0;
@@ -64,7 +64,7 @@ static void release_http_parser(http_parser *parser) {
 
 int dispatch(int client_sd, size_t size, int position, void *data, void **aux_data) {
 	http_parser *parser = *(http_parser**)aux_data;
-	return http_parser_execute(parser, (char *)data, size);
+	return http_parser_execute(parser, parser_settings, (char *)data, size);
 }
 
 int msg_start(int client_sd, void **aux_data) {
@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
 	handler.begin_cb = msg_start;
 	handler.end_cb = msg_end;
 	init_http_parser_pool(3);
-
+	parser_settings = request_processor_settings_init();
 	while (is_alive) {
 		mb_channel_receive(tcp_channel, &handler);
 	}
@@ -105,5 +105,6 @@ int main(int argc, char **argv) {
 		mb_channel_destroy(tcp_channel);
 		return 0;
 	}
+	request_processor_settings_destroy(parser_settings);
 	return 1;
 }

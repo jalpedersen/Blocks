@@ -32,8 +32,6 @@ struct value {
 	size_t length;
 };
 
-static message_content_t *content_save(lua_State *L);
-static int content_restore(lua_State *L, message_content_t *content);
 int dump_function (lua_State *L, int size, const char **dst);
 
 struct values {
@@ -157,29 +155,6 @@ void lua_message_content_destroy(message_content_t *content) {
 	free(content);
 }
 
-
-static int load_string(lua_State *L) {
-	int ret;
-	size_t fn_dump_size;
-	const char *fn_dump;
-
-	fn_dump_size = lua_tointeger(L, lua_upvalueindex(1));
-	fn_dump = lua_tolstring(L, lua_upvalueindex(2), &fn_dump_size);
-
-	ret = luaL_loadbuffer(L, fn_dump, fn_dump_size, "Chunk");
-	switch (ret) {
-	case 0:
-		break;
-	case LUA_ERRMEM:
-	case LUA_ERRSYNTAX:
-		luaL_error(L, lua_tostring(L, -1));
-		break;
-	default:
-		luaL_error(L, "Unexpected state: %d", ret);
-	}
-
-	return 1;
-}
 
 static int function_writer (lua_State *L, const void* b, size_t size, void* B) {
 	luaL_addlstring((luaL_Buffer*) B, (const char *)b, size);

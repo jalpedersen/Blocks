@@ -30,7 +30,7 @@ static struct mimetype default_mimetypes[] = {
 		{"css", 3, "text/css", 8},
 		{"js", 2, "text/javascript", 15},
 		{"txt", 3, "text/plain", 10},
-		NULL
+		{NULL}
 };
 
 static struct mimetype bin_mimetype = {"bin", 3, "application/octet-stream", 24};

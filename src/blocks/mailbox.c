@@ -167,7 +167,7 @@ int mailbox_message_reply(message_t *message, int is_dead) {
 
 message_t *mailbox_receive(mailbox_ref_t *mailbox_ref) {
 	mailbox_t *mailbox;
-	message_t *msg, *msg_head;
+	message_t *msg;
 
 	mailbox = mailbox_ref->mailbox;
 	pthread_mutex_lock(&mailbox->mutex);

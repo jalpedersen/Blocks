@@ -52,7 +52,7 @@ int send_file(FILE *src, FILE *dst) {
 	const size_t buf_size = 1024;
 	char buffer[buf_size];
 
-	int r_bytes, w_bytes;
+	int r_bytes, w_bytes = 0;
 	while ((r_bytes = fread(buffer, 1, buf_size, src)) > 0) {
 		w_bytes = fwrite(buffer, 1, r_bytes, dst);
 		if (w_bytes < r_bytes) {

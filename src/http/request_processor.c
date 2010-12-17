@@ -143,7 +143,6 @@ static const char *get_mimetype(const char *path, httpd_conf_t *conf) {
 
 static int http_send_file(http_parser *parser) {
 	struct http_conn_info *conn_info;
-	int r_bytes, w_bytes;
 	FILE *fd;
 	const char *file;
 	struct stat st;
@@ -233,7 +232,6 @@ int print_data(http_parser *parser, const char *data, size_t size) {
 
 int on_body(http_parser *parser, const char *data, size_t size) {
 	struct http_conn_info *conn_info;
-	int written;
 	conn_info = (struct http_conn_info*)parser->data;
 	return 0;
 }
@@ -267,19 +265,24 @@ http_parser *request_processor_reset(http_parser *parser, int client_sd, httpd_c
 	conn_info->client_sd = client_sd;
 	conn_info->client_fd = fdopen(client_sd, "r+");
 	parser->data = conn_info;
-
-	parser->on_message_begin = NULL;
-	parser->on_header_field = NULL;
-	parser->on_header_value = NULL;
-	parser->on_path = on_path;
-	parser->on_query_string = on_query;
-	parser->on_body = on_body;
-	parser->on_headers_complete = start_processing;
-	parser->on_message_complete = message_complete;
-
 	return parser;
 }
 
+http_parser_settings *request_processor_settings_init() {
+	http_parser_settings *settings = malloc(sizeof(http_parser_settings));
+	settings->on_message_begin = NULL;
+	settings->on_header_field = NULL;
+	settings->on_header_value = NULL;
+	settings->on_path = on_path;
+	settings->on_query_string = on_query;
+	settings->on_body = on_body;
+	settings->on_headers_complete = start_processing;
+	settings->on_message_complete = message_complete;
+	return settings;
+}
+void request_processor_settings_destroy(http_parser_settings *settings) {
+	free(settings);
+}
 http_parser *request_processor_init() {
 	struct http_conn_info *conn_info;
 	http_parser *parser = malloc(sizeof(http_parser));
@@ -291,7 +294,7 @@ http_parser *request_processor_init() {
 	return parser;
 }
 
-int request_processor_destroy(http_parser *parser) {
+void request_processor_destroy(http_parser *parser) {
 	struct http_conn_info *conn_info = parser->data;
 	if (conn_info != NULL) {
 		free(conn_info->query);

@@ -24,10 +24,23 @@
 extern "C" {
 #endif
 
-#ifdef _MSC_VER
-#  include <stddef.h>
-#endif
+
 #include <sys/types.h>
+#if defined(_WIN32) && !defined(__MINGW32__)
+typedef __int8 int8_t;
+typedef unsigned __int8 uint8_t;
+typedef __int16 int16_t;
+typedef unsigned __int16 uint16_t;
+typedef __int32 int32_t;
+typedef unsigned __int32 uint32_t;
+typedef __int64 int64_t;
+typedef unsigned __int64 uint64_t;
+
+typedef unsigned int size_t;
+typedef int ssize_t;
+#else
+#include <stdint.h>
+#endif
 
 /* Compile with -DHTTP_PARSER_STRICT=0 to make less checks, but run
  * faster
@@ -38,13 +51,23 @@ extern "C" {
 # define HTTP_PARSER_STRICT 0
 #endif
 
+
 /* Maximium header size allowed */
 #define HTTP_MAX_HEADER_SIZE (80*1024)
 
-typedef struct http_parser http_parser;
 
-/* Callbacks should return non-zero to indicate an error. The parse will
+typedef struct http_parser http_parser;
+typedef struct http_parser_settings http_parser_settings;
+
+
+/* Callbacks should return non-zero to indicate an error. The parser will
  * then halt execution.
+ *
+ * The one exception is on_headers_complete. In a HTTP_RESPONSE parser
+ * returning '1' from on_headers_complete will tell the parser that it
+ * should not expect a body. This is used when receiving a response to a
+ * HEAD request which may contain 'Content-Length' or 'Transfer-Encoding:
+ * chunked' headers that indicate the presence of a body.
  *
  * http_data_cb does not return data chunks. It will be call arbitrarally
  * many times for each string. E.G. you might get 10 callbacks for "on_path"
@@ -53,78 +76,72 @@ typedef struct http_parser http_parser;
 typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);
 typedef int (*http_cb) (http_parser*);
 
-/* Should be at least one longer than the longest request method */
-#define HTTP_PARSER_MAX_METHOD_LEN 10
 
 /* Request Methods */
 enum http_method
-  { HTTP_DELETE    = 0x0001
-  , HTTP_GET       = 0x0002
-  , HTTP_HEAD      = 0x0004
-  , HTTP_POST      = 0x0008
-  , HTTP_PUT       = 0x0010
+  { HTTP_DELETE    = 0
+  , HTTP_GET
+  , HTTP_HEAD
+  , HTTP_POST
+  , HTTP_PUT
   /* pathological */
-  , HTTP_CONNECT   = 0x0020
-  , HTTP_OPTIONS   = 0x0040
-  , HTTP_TRACE     = 0x0080
+  , HTTP_CONNECT
+  , HTTP_OPTIONS
+  , HTTP_TRACE
   /* webdav */
-  , HTTP_COPY      = 0x0100
-  , HTTP_LOCK      = 0x0200
-  , HTTP_MKCOL     = 0x0400
-  , HTTP_MOVE      = 0x0800
-  , HTTP_PROPFIND  = 0x1000
-  , HTTP_PROPPATCH = 0x2000
-  , HTTP_UNLOCK    = 0x4000
+  , HTTP_COPY
+  , HTTP_LOCK
+  , HTTP_MKCOL
+  , HTTP_MOVE
+  , HTTP_PROPFIND
+  , HTTP_PROPPATCH
+  , HTTP_UNLOCK
+  /* subversion */
+  , HTTP_REPORT
+  , HTTP_MKACTIVITY
+  , HTTP_CHECKOUT
+  , HTTP_MERGE
   };
 
-enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE };
+
+enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
+
 
 struct http_parser {
   /** PRIVATE **/
-  enum http_parser_type type;
-  unsigned short state;
-  unsigned short header_state;
-  size_t index;
+  unsigned char type : 2;
+  unsigned char flags : 6;
+  unsigned char state;
+  unsigned char header_state;
+  unsigned char index;
 
-  char flags;
-
-  size_t nread;
-  ssize_t body_read;
-  ssize_t content_length;
-
-  const char *header_field_mark;
-  size_t      header_field_size;
-  const char *header_value_mark;
-  size_t      header_value_size;
-  const char *query_string_mark;
-  size_t      query_string_size;
-  const char *path_mark;
-  size_t      path_size;
-  const char *url_mark;
-  size_t      url_size;
-  const char *fragment_mark;
-  size_t      fragment_size;
+  uint32_t nread;
+  int64_t content_length;
 
   /** READ-ONLY **/
-  unsigned short status_code; /* responses only */
-  enum http_method method;    /* requests only */
   unsigned short http_major;
   unsigned short http_minor;
-  char buffer[HTTP_PARSER_MAX_METHOD_LEN];
+  unsigned short status_code; /* responses only */
+  unsigned char method;    /* requests only */
+
+  /* 1 = Upgrade header was present and the parser has exited because of that.
+   * 0 = No upgrade header present.
+   * Should be checked when http_parser_execute() returns in addition to
+   * error checking.
+   */
+  char upgrade;
 
   /** PUBLIC **/
   void *data; /* A pointer to get hook to the "connection" or "socket" object */
+};
 
-  /* an ordered list of callbacks */
 
+struct http_parser_settings {
   http_cb      on_message_begin;
-
-  /* requests only */
   http_data_cb on_path;
   http_data_cb on_query_string;
   http_data_cb on_url;
   http_data_cb on_fragment;
-
   http_data_cb on_header_field;
   http_data_cb on_header_value;
   http_cb      on_headers_complete;
@@ -132,14 +149,26 @@ struct http_parser {
   http_cb      on_message_complete;
 };
 
+
 void http_parser_init(http_parser *parser, enum http_parser_type type);
-size_t http_parser_execute(http_parser *parser, const char *data, size_t len);
-/* Call this in the on_headers_complete or on_message_complete callback to
- * determine if this will be the last message on the connection.
- * If you are the server, respond with the "Connection: close" header
- * if you are the client, close the connection.
+
+
+size_t http_parser_execute(http_parser *parser,
+                           const http_parser_settings *settings,
+                           const char *data,
+                           size_t len);
+
+
+/* If http_should_keep_alive() in the on_headers_complete or
+ * on_message_complete callback returns true, then this will be should be
+ * the last message on the connection.
+ * If you are the server, respond with the "Connection: close" header.
+ * If you are the client, close the connection.
  */
 int http_should_keep_alive(http_parser *parser);
+
+/* Returns a string version of the HTTP method. */
+const char *http_method_str(enum http_method);
 
 #ifdef __cplusplus
 }

@@ -1,28 +1,32 @@
 HTTP Parser
 ===========
 
-This is a parser for HTTP messages written in C. It parses both requests
-and responses. The parser is designed to be used in performance HTTP
-applications. It does not make any allocations, it does not buffer data, and
-it can be interrupted at anytime. It only requires about 136 bytes of data
-per message stream (in a web server that is per connection).
+This is a parser for HTTP messages written in C. It parses both requests and
+responses. The parser is designed to be used in performance HTTP
+applications. It does not make any syscalls nor allocations, it does not
+buffer data, it can be interrupted at anytime. Depending on your
+architecture, it only requires about 40 bytes of data per message
+stream (in a web server that is per connection).
 
 Features:
 
   * No dependencies
-  * Parses both requests and responses.
-  * Handles persistent streams.
+  * Handles persistent streams (keep-alive).
   * Decodes chunked encoding.
-  * Extracts the following data from a message
-    * header fields and values
-    * content-length
-    * request method
-    * response status code
-    * transfer-encoding
-    * http version
-    * request path, query string, fragment
-    * message body
+  * Upgrade support
   * Defends against buffer overflow attacks.
+
+The parser extracts the following information from HTTP messages:
+
+  * Header fields and values
+  * Content-Length
+  * Request method
+  * Response status code
+  * Transfer-Encoding
+  * HTTP version
+  * Request path, query string, fragment
+  * Message body
+
 
 Usage
 -----
@@ -31,11 +35,13 @@ One `http_parser` object is used per TCP connection. Initialize the struct
 using `http_parser_init()` and set the callbacks. That might look something
 like this for a request parser:
 
+    http_parser_settings settings;
+    settings.on_path = my_path_callback;
+    settings.on_header_field = my_header_field_callback;
+    /* ... */
+
     http_parser *parser = malloc(sizeof(http_parser));
     http_parser_init(parser, HTTP_REQUEST);
-    parser->on_path = my_path_callback;
-    parser->on_header_field = my_header_field_callback;
-    /* ... */
     parser->data = my_socket;
 
 When data is received on the socket execute the parser and check for errors.
@@ -51,25 +57,26 @@ When data is received on the socket execute the parser and check for errors.
     }
 
     /* Start up / continue the parser.
-     * Note we pass the recved==0 to http_parse_requests to signal
-     * that EOF has been recieved.
+     * Note we pass recved==0 to signal that EOF has been recieved.
      */
-    nparsed = http_parser_execute(parser, buf, recved);
+    nparsed = http_parser_execute(parser, &settings, buf, recved);
 
-    if (nparsed != recved) {
+    if (parser->upgrade) {
+      /* handle new protocol */
+    } else if (nparsed != recved) {
       /* Handle error. Usually just close the connection. */
     }
 
 HTTP needs to know where the end of the stream is. For example, sometimes
 servers send responses without Content-Length and expect the client to
 consume input (for the body) until EOF. To tell http_parser about EOF, give
-`0` as the third parameter to `http_parser_execute()`. Callbacks and errors
+`0` as the forth parameter to `http_parser_execute()`. Callbacks and errors
 can still be encountered during an EOF, so one must still be prepared
 to receive them.
 
 Scalar valued message information such as `status_code`, `method`, and the
 HTTP version are stored in the parser structure. This data is only
-temporarlly stored in `http_parser` and gets reset on each new message. If
+temporally stored in `http_parser` and gets reset on each new message. If
 this information is needed later, copy it out of the structure during the
 `headers_complete` callback.
 
@@ -77,18 +84,42 @@ The parser decodes the transfer-encoding for both requests and responses
 transparently. That is, a chunked encoding is decoded before being sent to
 the on_body callback.
 
-It does not decode the content-encoding (gzip). Not all HTTP applications
-need to inspect the body. Decoding gzip is non-neglagable amount of
-processing (and requires making allocations). HTTP proxies using this
-parser, for example, would not want such a feature.
+
+The Special Problem of Upgrade
+------------------------------
+
+HTTP supports upgrading the connection to a different protocol. An
+increasingly common example of this is the Web Socket protocol which sends
+a request like
+
+        GET /demo HTTP/1.1
+        Upgrade: WebSocket
+        Connection: Upgrade
+        Host: example.com
+        Origin: http://example.com
+        WebSocket-Protocol: sample
+
+followed by non-HTTP data.
+
+(See http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75 for more
+information the Web Socket protocol.)
+
+To support this, the parser will treat this as a normal HTTP message without a
+body. Issuing both on_headers_complete and on_message_complete callbacks. However
+http_parser_execute() will stop parsing at the end of the headers and return.
+
+The user is expected to check if `parser->upgrade` has been set to 1 after
+`http_parser_execute()` returns. Non-HTTP data begins at the buffer supplied
+offset by the return value of `http_parser_execute()`.
+
 
 Callbacks
 ---------
 
-During the `http_parser_execute()` call, the callbacks set in `http_parser`
-will be executed. The parser maintains state and never looks behind, so
-buffering the data is not necessary. If you need to save certain data for
-later usage, you can do that from the callbacks.
+During the `http_parser_execute()` call, the callbacks set in
+`http_parser_settings` will be executed. The parser maintains state and
+never looks behind, so buffering the data is not necessary. If you need to
+save certain data for later usage, you can do that from the callbacks.
 
 There are two types of callbacks:
 
@@ -97,6 +128,9 @@ There are two types of callbacks:
 * data `typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);`
     Callbacks: (requests only) on_path, on_query_string, on_uri, on_fragment,
                (common) on_header_field, on_header_value, on_body;
+
+Callbacks must return 0 on success. Returning a non-zero value indicates
+error to the parser, making it exit immediately.
 
 In case you parse HTTP message in chunks (i.e. `read()` request line
 from socket, parse, read half headers, parse, etc) your data callbacks
@@ -128,6 +162,7 @@ and apply following logic:
     | value                  | on_h_value | Value continues. Reallocate value buffer   |
     |                        |            | and append callback data to it             |
      ------------------------ ------------ --------------------------------------------
+
 
 See examples of reading in headers:
 
