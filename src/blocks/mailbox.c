@@ -42,6 +42,7 @@ struct mailbox {
 	pthread_cond_t new_message;
 	message_t *head;
 	message_t *end;
+	unsigned int count;
 	enum mailbox_state state;
 	task_t *task;
 };
@@ -61,6 +62,7 @@ mailbox_t *mailbox_init(lua_State *L) {
 	mailbox->head = NULL;
 	mailbox->end = NULL;
 	mailbox->task = NULL;
+	mailbox->count = 0;
 
 	ref->mailbox = mailbox;
 	return mailbox;
@@ -130,6 +132,9 @@ message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recipient, message
 	if (rcpt->state == MBOX_DEAD) {
 		return NULL;
 	}
+	if (rcpt->count > 100){
+		log_warn("Mailbox has %d messages in it", rcpt->count);
+	}
 	msg = malloc(sizeof(message_t));
 	pthread_mutex_init(&msg->mutex, NULL);
 	pthread_cond_init(&msg->ready, NULL);
@@ -148,6 +153,7 @@ message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recipient, message
 		rcpt->end->next = msg;
 		rcpt->end = msg;
 	}
+	rcpt->count++;
 	pthread_mutex_unlock(&rcpt->mutex);
 	process_notify_task(rcpt->task);
 	return msg;
@@ -174,6 +180,7 @@ message_t *mailbox_receive(mailbox_ref_t *mailbox_ref) {
 	msg = mailbox->head;
 	if (msg != NULL) {
 		mailbox->head = msg->next;
+		mailbox->count--;
 	}
 	pthread_mutex_unlock(&mailbox->mutex);
     return msg;
