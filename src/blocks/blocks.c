@@ -123,6 +123,8 @@ static int l_mailbox_ref_destroy(lua_State *L) {
 
 static int l_mailbox_message_destroy(lua_State *L) {
 	message_ref_t *ref;
+	log_debug("Destroying message");
+	lua_stackdump(L);
 	ref = luaL_checkudata(L, 1, MESSAGE_REF_TYPE_NAME);
 	mailbox_message_destroy(ref->message);
 	return 0;

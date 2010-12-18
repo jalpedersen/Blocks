@@ -9,6 +9,7 @@ handler_setup = function()
         print ('path:          ' , path)
         print ('query:         ', query)
         print ('client socket: ', sd)
+        collectgarbage()
         return handler
     end
     return handler
