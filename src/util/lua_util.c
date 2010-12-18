@@ -44,8 +44,14 @@ int lua_eval_part(lua_State *L, int narg, int nres) {
 	case LUA_ERRRUN:
 		log_error("Runtime error: %s", lua_tostring(L, -1));
 		break;
+	case LUA_ERRSYNTAX:
+		log_error("Syntax error: %s", lua_tostring(L, -1));
+		break;
 	case LUA_ERRMEM:
 		log_error("Memory allocation error: %s", lua_tostring(L, -1));
+		break;
+	case LUA_ERRGCMM:
+		log_error("Garbage collector error: %s", lua_tostring(L, -1));
 		break;
 	case LUA_ERRERR:
 		log_error("Error calling traceback function: %s", lua_tostring(L, -1));
