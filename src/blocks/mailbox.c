@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include "mailbox.h"
+#include "lua_message.h"
 #include "process.h"
 #include <util/lua_util.h>
 #include <util/log.h>
@@ -220,6 +221,7 @@ void mailbox_message_destroy(message_t *message) {
 		pthread_mutex_unlock(&message->mutex);
 		pthread_cond_destroy(&message->ready);
 		pthread_mutex_destroy(&message->mutex);
+		lua_message_content_destroy(message->content);
 		free(message);
 	} else {
 		pthread_mutex_unlock(&message->mutex);

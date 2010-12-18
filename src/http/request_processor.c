@@ -119,6 +119,8 @@ static int http_lua_eval(http_parser *parser) {
 	switch(parser->method) {
 	case HTTP_GET: lua_pushstring(L, "GET");break;
 	case HTTP_POST: lua_pushstring(L, "POST");break;
+	case HTTP_PUT: lua_pushstring(L, "PUT"); break;
+	case HTTP_DELETE: lua_pushstring(L, "DELETE"); break;
 	default: lua_pushstring(L, "UNKNOWN");
 	}
 	lua_eval(L);
