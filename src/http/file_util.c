@@ -63,21 +63,11 @@ int send_file(FILE *src, FILE *dst) {
 
 	return w_bytes;
 }
-/*
-static int close_socket(lua_State *L) {
-	FILE **file = ((FILE **)luaL_checkudata(L, 1, LUA_FILEHANDLE));
-	if (*file != NULL) {
-		fclose(*file);
-		*file = NULL;
-	}
-	return 0;
-}
-*/
+
+
 int lua_pushfile(lua_State *L, FILE *file) {
 	FILE **client = (FILE **)lua_newuserdata(L, sizeof(FILE *));
 	*client = file;
-	luaL_getmetatable(L, LUA_FILEHANDLE);
-	lua_setmetatable(L, -2);
-
-	return 0;
+	luaL_setmetatable(L, LUA_FILEHANDLE);
+	return 1;
 }

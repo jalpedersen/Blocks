@@ -122,6 +122,7 @@ static int http_lua_eval(http_parser *parser) {
 	default: lua_pushstring(L, "UNKNOWN");
 	}
 	lua_eval(L);
+	fclose(conn_info->client_fd);
 	return_lua_state(conn_info->lua, L);
 	return 0;
 }

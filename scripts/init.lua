@@ -22,7 +22,6 @@ dispatch = function(path, query, sd)
         print (sd)
 	    sd:write(line)
     end
-    sd:close()
     print (mbox:send(path, query))
 end
 p = blocks.spawn(
