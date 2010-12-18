@@ -112,14 +112,14 @@ message_content_t *lua_message_pop(lua_State *L) {
 		l_type = lua_type(L, i);
 		switch (l_type) {
 		case LUA_TBOOLEAN: type = T_BOOLEAN; length = sizeof(char); break;
-		case LUA_TSTRING: type = T_STRING; length = lua_objlen(L, i); break;
-		case LUA_TNUMBER: type = T_FLOATING; length = lua_objlen(L, i); break;
-		case LUA_TFUNCTION: type = T_FUNCTION; length = lua_objlen(L, i); break;
-		case LUA_TNIL: type = T_NIL; length = lua_objlen(L, i); break;
-		case LUA_TTABLE: type = T_TABLE; length = lua_objlen(L, i); break;
+		case LUA_TSTRING: type = T_STRING; length = lua_rawlen(L, i); break;
+		case LUA_TNUMBER: type = T_FLOATING; length = lua_rawlen(L, i); break;
+		case LUA_TFUNCTION: type = T_FUNCTION; length = lua_rawlen(L, i); break;
+		case LUA_TNIL: type = T_NIL; length = lua_rawlen(L, i); break;
+		case LUA_TTABLE: type = T_TABLE; length = lua_rawlen(L, i); break;
 		case LUA_TLIGHTUSERDATA:
 		case LUA_TUSERDATA: type = T_USERDATA; length = sizeof(void*); break;
-		default: type = T_NIL; length = lua_objlen(L, i); break;
+		default: type = T_NIL; length = lua_rawlen(L, i); break;
 		}
 		value_length = length + sizeof(struct value); 
 		if (heap_position + value_length >= heap_size) {
@@ -172,7 +172,7 @@ int dump_function (lua_State *L, int size, const char **dest) {
     luaL_error(L, "Could not dump function");
   }
   luaL_pushresult(&b);
-  fn_size = lua_objlen(L, -1);
+  fn_size = lua_rawlen(L, -1);
   fn_dump = lua_tolstring(L, -1, &fn_size);
   if (dest != NULL) {
 	  *dest = fn_dump;

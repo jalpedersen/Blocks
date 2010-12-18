@@ -47,7 +47,7 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 	lua_getglobal(L, "scripts");
 	conf->lua_states = NULL;
 	if (lua_istable(L, -1)) {
-		length = lua_objlen(L, -1);
+		length = lua_rawlen(L, -1);
 		states = malloc(sizeof(httpd_lua_state_t) * (length + 1));
 		lua_pushnil(L);
 		i = 0;
@@ -62,7 +62,7 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 				continue;
 			}
 			pattern = lua_tostring(L, -1);
-			size = lua_objlen(L, -1);
+			size = lua_rawlen(L, -1);
 			states[i].pattern = strdup(pattern);
 			states[i].pattern_size = size;
 			lua_pop(L, 1);
@@ -70,7 +70,7 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 			lua_getfield(L, -1, "mimetype");
 			mimetype = luaL_optstring(L,-1, json_mimetype.mimetype);
 			if (mimetype != json_mimetype.mimetype) {
-				size = lua_objlen(L, -1);
+				size = lua_rawlen(L, -1);
 				states[i].mimetype = strdup(mimetype);
 			} else {
 				states[i].mimetype = mimetype;
@@ -85,7 +85,7 @@ static int load_scripts(httpd_conf_t *conf, lua_State *L) {
 				continue;
 			}
 			file = lua_tostring(L, -1);
-			size = lua_objlen(L, -1);
+			size = lua_rawlen(L, -1);
 			lua_pop(L, 1);
 			states[i].filename = strdup(file);
 			new_L = luaL_newstate();
@@ -147,7 +147,7 @@ httpd_conf_t *httpd_conf_load(const char *file) {
 	lua_getglobal(L, "mimetypes");
 	if (lua_istable(L, -1)) {
 		int i, top;
-		mimetype_length = lua_objlen(L, -1);
+		mimetype_length = lua_rawlen(L, -1);
 		mimetypes = malloc(sizeof(httpd_conf_t) * (mimetype_length + 1));
 
 		lua_pushnil(L); /*First key*/
@@ -162,8 +162,8 @@ httpd_conf_t *httpd_conf_load(const char *file) {
 				const char *value;
 				int key_length, value_length;
 
-				key_length = lua_objlen(L, -2);
-				value_length = lua_objlen(L, -1);
+				key_length = lua_rawlen(L, -2);
+				value_length = lua_rawlen(L, -1);
 				key = lua_tostring(L, -2);
 				value = lua_tostring(L, -1);
 				mimetypes[i].mimetype = strdup(value);

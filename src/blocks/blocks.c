@@ -128,7 +128,7 @@ static int l_mailbox_message_destroy(lua_State *L) {
 	return 0;
 }
 
-static const luaL_reg blocks_functions[] = {
+static const luaL_Reg blocks_functions[] = {
 		{"spawn", l_spawn},
 		{"sleep", l_sleep},
 		{"receive", l_message_receive},

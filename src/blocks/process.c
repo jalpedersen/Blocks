@@ -223,7 +223,7 @@ static int copy_function (lua_State *src, lua_State *dst, int index) {
     luaL_error(src, "Could not dump function");
   }
   luaL_pushresult(&b);
-  fn_size = lua_objlen(src, -1);
+  fn_size = lua_rawlen(src, -1);
   fn_dump = lua_tolstring(src, -1, &fn_size);
   lua_pushinteger(dst, fn_size);
   lua_pushlstring(dst, fn_dump, fn_size);
@@ -277,7 +277,7 @@ static void copy_value(lua_State *src, lua_State *dst, int index) {
 	case LUA_TNONE:
 		break;
 	case LUA_TSTRING:
-		len = lua_objlen(src, index);
+		len = lua_rawlen(src, index);
 		str = lua_tolstring(src, index, &len);
 		lua_pushlstring(dst, str, len);
 		break;
