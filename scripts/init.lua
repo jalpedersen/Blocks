@@ -1,6 +1,6 @@
 require ('blocks')
 require ('io')
-dfa 
+
 print("Starting up...");
 handler_setup = function() 
     handler = function(path, query, sd)
