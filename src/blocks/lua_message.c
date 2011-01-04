@@ -60,6 +60,8 @@ int lua_message_push(lua_State *L, message_content_t *content) {
 			break;
 		case T_INTEGER:
 		case T_FLOATING:
+                        lua_pushnumber(L, *(lua_Number*)data);
+                        break;
 		case T_STRING:
 			lua_pushlstring(L, data, arg->length);
 			break;
@@ -113,7 +115,7 @@ message_content_t *lua_message_pop(lua_State *L) {
 		switch (l_type) {
 		case LUA_TBOOLEAN: type = T_BOOLEAN; length = sizeof(char); break;
 		case LUA_TSTRING: type = T_STRING; length = lua_rawlen(L, i); break;
-		case LUA_TNUMBER: type = T_FLOATING; length = lua_rawlen(L, i); break;
+		case LUA_TNUMBER: type = T_FLOATING; length = sizeof(lua_Number); break;
 		case LUA_TFUNCTION: type = T_FUNCTION; length = lua_rawlen(L, i); break;
 		case LUA_TNIL: type = T_NIL; length = lua_rawlen(L, i); break;
 		case LUA_TTABLE: type = T_TABLE; length = lua_rawlen(L, i); break;
@@ -138,6 +140,8 @@ message_content_t *lua_message_pop(lua_State *L) {
 		arg->type = type;
 		if (type == T_BOOLEAN) {
 			*(char*)data = lua_toboolean(L, i);
+		} else if (type == T_FLOATING) {
+			*(lua_Number*)data = lua_tonumber(L, i);
 		} else if (type == T_USERDATA) {
 			*(ptrdiff_t*)data = (ptrdiff_t)lua_touserdata(L, i);
 		} else {
