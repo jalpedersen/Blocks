@@ -43,7 +43,11 @@ p = blocks.spawn(
 		end end, {3,5, {1,2}, function()end, {1}, {a={b, {p=993}}}}, {a=2, c=true, b='test'})
 
 r = p:send(10, 1.223, 'Hello there', true, false, {fisk = 2}, function(a) a() end)
---print (r:get())
+print (r:get())
+
+p2 = blocks.spawn(function() return function() return 42 end end) 
+r2 = p2:send('testing')
+print (r2:get())
 
 port = 8889
 
