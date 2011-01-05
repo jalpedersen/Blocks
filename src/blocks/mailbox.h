@@ -42,6 +42,10 @@ void mailbox_destroy(mailbox_ref_t *mailbox);
 
 void mailbox_message_destroy(message_t *message);
 
+void mailbox_message_content_destroy(message_t *message);
+
+void mailbox_message_content_set(message_t *message, message_content_t *content);
+
 void mailbox_set_task(mailbox_t *mailbox, task_t *task);
 
 message_t *mailbox_send(mailbox_ref_t *sender, mailbox_ref_t *recipient,
