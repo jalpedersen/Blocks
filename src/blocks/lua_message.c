@@ -90,7 +90,7 @@ int lua_message_push(lua_State *L, message_content_t *content) {
 }
 
 
-message_content_t *lua_message_pop(lua_State *L) {
+message_content_t *lua_message_pop(lua_State *L, int offset) {
 	int argc, i, l_type, type;
 	size_t length, value_length;
 	int message_size;
@@ -101,7 +101,7 @@ message_content_t *lua_message_pop(lua_State *L) {
 	struct values *args;
 	struct value *arg;
 
-	argc = lua_gettop(L);
+	argc = lua_gettop(L) - offset;
 	if (argc==0) {
 		return NULL;
 	}
@@ -112,7 +112,7 @@ message_content_t *lua_message_pop(lua_State *L) {
 
 	args = get_index(heap, &heap_position, sizeof(struct values));
 	args->size = argc;
-	for (i = 2; i <= argc+1; i++) {
+	for (i = 1+offset; i <= argc+offset; i++) {
 		l_type = lua_type(L, i);
 		switch (l_type) {
 		case LUA_TBOOLEAN: type = T_BOOLEAN; length = sizeof(char); break;
@@ -149,7 +149,7 @@ message_content_t *lua_message_pop(lua_State *L) {
 		} else {
 			memcpy(data, lua_tolstring(L, i, &length), length);
 		}
-		//log_debug("Type: %s. Size: %d", lua_typename(L, l_type), length);
+		//log_debug("Type: %s. Size: %d", lua_typename(L, l_type), (int)length);
 	}
 	content = malloc(sizeof(message_content_t));
 	content->message = heap;

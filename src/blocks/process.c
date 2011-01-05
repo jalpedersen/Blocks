@@ -157,7 +157,7 @@ static void *worker(void *args) {
 			}
 			lua_eval(L);
 			/* Replace message data with reply */
-			mailbox_message_content_set(msg, lua_message_pop(L));
+			mailbox_message_content_set(msg, lua_message_pop(L,0));
 			/* Signal any pending receivers that we have completed the task */
 			mailbox_message_reply(msg, 0);
 

@@ -72,7 +72,7 @@ static int l_message_send(lua_State *L) {
 
 	//log_debug("Sending message from %p to %p", 
         //          (void*)sender, (void*)recipient->mailbox);
-	content = lua_message_pop(L);
+	content = lua_message_pop(L, 1);
 	msg = mailbox_send(sender, recipient, content);
 	if (msg != NULL) {
 		/* Return reference to message */
