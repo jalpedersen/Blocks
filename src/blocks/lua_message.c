@@ -46,6 +46,9 @@ int lua_message_push(lua_State *L, message_content_t *content) {
 	void *heap, *data;
 	struct value *arg;
 	struct values *arguments;
+	if (content == NULL) {
+		return 0;
+	}
 	heap = content->message;
 	heap_position = 0;
 	arguments = get_index(heap, &heap_position, sizeof(struct values));
@@ -82,8 +85,7 @@ int lua_message_push(lua_State *L, message_content_t *content) {
 			break;
 		}
 	}
-	/* Destroy message when done */
-
+	/* Remember to destroy message content when done */
 	return argc;
 }
 
@@ -99,9 +101,10 @@ message_content_t *lua_message_pop(lua_State *L) {
 	struct values *args;
 	struct value *arg;
 
-	/* Don't include the 'self' object */
-	argc = lua_gettop(L)-1;
-
+	argc = lua_gettop(L);
+	if (argc==0) {
+		return NULL;
+	}
 	message_size = sizeof(struct values) + (sizeof(struct value) * argc);
 	heap_size = message_size + MSG_INC_SIZE;
 	heap = malloc(heap_size);
@@ -154,8 +157,10 @@ message_content_t *lua_message_pop(lua_State *L) {
 }
 
 void lua_message_content_destroy(message_content_t *content) {
-	free(content->message);
-	free(content);
+	if (content != NULL) {
+		free(content->message);
+		free(content);
+	}
 }
 
 

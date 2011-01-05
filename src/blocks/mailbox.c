@@ -199,14 +199,14 @@ message_t *mailbox_peek(mailbox_ref_t *mailbox_ref) {
 }
 
 message_t *mailbox_wait_for_reply(message_t *message, int timeout) {
-	//log_debug("Waiting for message in %p:", (void*)message);
 	pthread_mutex_lock(&message->mutex);
 	while (message->state == MSG_WAITING ||
 			message->state == MSG_PROCESSING){
 		pthread_cond_wait(&message->ready, &message->mutex);
 	}
-	return message;
 	pthread_mutex_unlock(&message->mutex);
+	return message;
+
 
 }
 
@@ -227,6 +227,16 @@ void mailbox_message_destroy(message_t *message) {
 		pthread_mutex_unlock(&message->mutex);
 	}
 }
+
+void mailbox_message_content_destroy(message_t *message) {
+	lua_message_content_destroy(message->content);
+	message->content = NULL;
+}
+
+void mailbox_message_content_set(message_t *message, message_content_t *content) {
+	message->content = content;
+}
+
 
 void mailbox_set_task(mailbox_t *mailbox, task_t *task) {
 	mailbox->task = task;

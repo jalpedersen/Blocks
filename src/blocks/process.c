@@ -153,10 +153,14 @@ static void *worker(void *args) {
 			if (msg != NULL) {
 				/* Push message onto Lua stack */
 				argc = lua_message_push(L, mailbox_message_get_content(msg));
+				mailbox_message_content_destroy(msg);
 			}
 			lua_eval(L);
+			/* Replace message data with reply */
+			mailbox_message_content_set(msg, lua_message_pop(L));
 			/* Signal any pending receivers that we have completed the task */
 			mailbox_message_reply(msg, 0);
+
 			if (msg != NULL) {
 				mailbox_message_destroy(msg);
 			}
