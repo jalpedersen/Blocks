@@ -83,7 +83,6 @@ int lua_message_push(lua_State *L, message_content_t *content) {
 		}
 	}
 	/* Destroy message when done */
-	lua_message_content_destroy(content);
 
 	return argc;
 }
