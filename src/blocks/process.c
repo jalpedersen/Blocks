@@ -172,6 +172,7 @@ static void *worker(void *args) {
 		/* If function hasn't left a callback function on
 		 * stack it is done and we close it's state */
 		if ( ! do_continue ) {
+			mailbox_set_last_message(mbox_ref->mailbox, lua_message_pop(L, 0));
 			task_destroy(t);
 		} else {
 			pthread_mutex_lock(&t->mutex);

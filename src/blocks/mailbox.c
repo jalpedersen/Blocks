@@ -46,6 +46,7 @@ struct mailbox {
 	unsigned int count;
 	enum mailbox_state state;
 	task_t *task;
+	message_content_t *last_message;
 };
 
 mailbox_t *mailbox_init(lua_State *L) {
@@ -64,7 +65,7 @@ mailbox_t *mailbox_init(lua_State *L) {
 	mailbox->end = NULL;
 	mailbox->task = NULL;
 	mailbox->count = 0;
-
+	mailbox->last_message = NULL;
 	ref->mailbox = mailbox;
 	return mailbox;
 }
@@ -96,6 +97,10 @@ mailbox_ref_t *mailbox_get(lua_State *L) {
 	return mailbox_ref;
 }
 
+int mailbox_isactive(mailbox_t *mailbox) {
+	return mailbox->state == MBOX_ALIVE?1:0;
+}
+
 mailbox_ref_t *mailbox_get_parent(lua_State *L) {
 	mailbox_ref_t *mailbox_ref;
 	lua_pushlightuserdata(L, (void *)&parent_mailbox_key);
@@ -103,6 +108,14 @@ mailbox_ref_t *mailbox_get_parent(lua_State *L) {
 	mailbox_ref = lua_touserdata(L, -1);
 	lua_pop(L, 1);
 	return mailbox_ref;
+}
+
+void mailbox_set_last_message(mailbox_t *mailbox, message_content_t *message) {
+	mailbox->last_message = message;
+}
+
+message_content_t *mailbox_get_last_message(mailbox_t *mailbox) {
+	return mailbox->last_message;
 }
 
 void mailbox_destroy(mailbox_ref_t *ref) {
@@ -121,6 +134,9 @@ void mailbox_destroy(mailbox_ref_t *ref) {
 		/* Remove messages as well*/
 		pthread_cond_destroy(&mailbox->new_message);
 		pthread_mutex_destroy(&mailbox->mutex);
+		if (mailbox->last_message != NULL) {
+			free(mailbox->last_message);
+		}
 		free(mailbox);
 	}
 }

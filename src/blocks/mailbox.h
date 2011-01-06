@@ -38,6 +38,12 @@ mailbox_t *mailbox_init(lua_State *L);
 
 mailbox_ref_t *mailbox_get(lua_State *L);
 
+int mailbox_isactive(mailbox_t *mailbox);
+
+void mailbox_set_last_message(mailbox_t *mailbox, message_content_t *message);
+
+message_content_t *mailbox_get_last_message(mailbox_t *mailbox);
+
 void mailbox_destroy(mailbox_ref_t *mailbox);
 
 void mailbox_message_destroy(message_t *message);
