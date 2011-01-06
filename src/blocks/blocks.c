@@ -114,6 +114,21 @@ static int l_mailbox_message_get(lua_State *L) {
 	return lua_message_push(L, mailbox_message_get_content(msg));
 }
 
+static int l_mailbox_state(lua_State *L) {
+	mailbox_ref_t *ref;
+
+	ref = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
+	if (mailbox_isactive(ref->mailbox)) {
+		lua_pushboolean(L, 1);
+		return 1;
+	} else {
+		lua_pushboolean(L, 0);
+		lua_message_push(L, mailbox_get_last_message(ref->mailbox));
+		return 2;
+	}
+
+}
+
 static int l_mailbox_ref_destroy(lua_State *L) {
 	mailbox_ref_t *ref;
 	ref = luaL_checkudata(L, 1, MAILBOX_REF_TYPE_NAME);
@@ -151,6 +166,9 @@ LUALIB_API int luaopen_blocks(lua_State *L) {
 	lua_settable(L, -3);
 	lua_pushstring(L, "send");
 	lua_pushcfunction(L, l_message_send);
+	lua_settable(L, -3);
+	lua_pushstring(L, "state");
+	lua_pushcfunction(L, l_mailbox_state);
 	lua_settable(L, -3);
 	lua_pushstring(L, "__metadata");
 	lua_pushstring(L, "restricted");
