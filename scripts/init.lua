@@ -4,7 +4,7 @@ require ('io')
 print("Starting up...");
 handler_setup = function() 
     handler = function(path, query, sd)
-        blocks.sleep(1);
+        blocks.sleep(10);
         print ('D: sent: ', sent, ' recv: ', recv);
         print ('path:          ' , path)
         print ('query:         ', query)
@@ -18,11 +18,13 @@ mbox = blocks.spawn(handler_setup)
 
 dispatch = function(path, query, sd)
     fh = io.popen('ls');
+    print (sd)
     for line in fh:lines() do
         print (line)
-        print (sd)
-	    sd:write(line)
+	sd:write(line)
     end
+    sd:write("\n");
+    sd:close()
     print (mbox:send(path, query))
 end
 p = blocks.spawn(

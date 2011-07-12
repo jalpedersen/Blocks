@@ -1,4 +1,4 @@
-/* Copyright 2009,2010 Ryan Dahl <ry@tinyclouds.org>
+/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -55,7 +55,7 @@ struct message {
   char headers [MAX_HEADERS][2][MAX_ELEMENT_SIZE];
   int should_keep_alive;
 
-  int upgrade;
+  const char *upgrade; // upgraded body
 
   unsigned short http_major;
   unsigned short http_minor;
@@ -473,6 +473,7 @@ const struct message requests[] =
          "Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n"
          "Origin: http://example.com\r\n"
          "\r\n"
+         "Hot diggity dogg"
   ,.should_keep_alive= TRUE
   ,.message_complete_on_eof= FALSE
   ,.http_major= 1
@@ -483,7 +484,7 @@ const struct message requests[] =
   ,.request_path= "/demo"
   ,.request_url= "/demo"
   ,.num_headers= 7
-  ,.upgrade=1
+  ,.upgrade="Hot diggity dogg"
   ,.headers= { { "Host", "example.com" }
              , { "Connection", "Upgrade" }
              , { "Sec-WebSocket-Key2", "12998 5 Y3 1  .P00" }
@@ -498,10 +499,12 @@ const struct message requests[] =
 #define CONNECT_REQUEST 17
 , {.name = "connect request"
   ,.type= HTTP_REQUEST
-  ,.raw= "CONNECT home0.netscape.com:443 HTTP/1.0\r\n"
+  ,.raw= "CONNECT 0-home0.netscape.com:443 HTTP/1.0\r\n"
          "User-agent: Mozilla/1.1N\r\n"
          "Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n"
          "\r\n"
+         "some data\r\n"
+         "and yet even more data"
   ,.should_keep_alive= FALSE
   ,.message_complete_on_eof= FALSE
   ,.http_major= 1
@@ -510,9 +513,9 @@ const struct message requests[] =
   ,.query_string= ""
   ,.fragment= ""
   ,.request_path= ""
-  ,.request_url= "home0.netscape.com:443"
+  ,.request_url= "0-home0.netscape.com:443"
   ,.num_headers= 2
-  ,.upgrade=1
+  ,.upgrade="some data\r\nand yet even more data"
   ,.headers= { { "User-agent", "Mozilla/1.1N" }
              , { "Proxy-authorization", "basic aGVsbG86d29ybGQ=" }
              }
@@ -554,6 +557,216 @@ const struct message requests[] =
   ,.request_url= "/"
   ,.num_headers= 0
   ,.headers= {}
+  ,.body= ""
+  }
+
+#define MSEARCH_REQ 20
+, {.name= "m-search request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "M-SEARCH * HTTP/1.1\r\n"
+         "HOST: 239.255.255.250:1900\r\n"
+         "MAN: \"ssdp:discover\"\r\n"
+         "ST: \"ssdp:all\"\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_MSEARCH
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "*"
+  ,.request_url= "*"
+  ,.num_headers= 3
+  ,.headers= { { "HOST", "239.255.255.250:1900" }
+             , { "MAN", "\"ssdp:discover\"" }
+             , { "ST", "\"ssdp:all\"" }
+             }
+  ,.body= ""
+  }
+
+#define LINE_FOLDING_IN_HEADER 20
+, {.name= "line folding in header value"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET / HTTP/1.1\r\n"
+         "Line1:   abc\r\n"
+         "\tdef\r\n"
+         " ghi\r\n"
+         "\t\tjkl\r\n"
+         "  mno \r\n"
+         "\t \tqrs\r\n"
+         "Line2: \t line2\t\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/"
+  ,.request_url= "/"
+  ,.num_headers= 2
+  ,.headers= { { "Line1", "abcdefghijklmno qrs" }
+             , { "Line2", "line2\t" }
+             }
+  ,.body= ""
+  }
+
+
+#define QUERY_TERMINATED_HOST 21
+, {.name= "host terminated by a query string"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET http://hypnotoad.org?hail=all HTTP/1.1\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= "hail=all"
+  ,.fragment= ""
+  ,.request_path= ""
+  ,.request_url= "http://hypnotoad.org?hail=all"
+  ,.num_headers= 0
+  ,.headers= { }
+  ,.body= ""
+  }
+
+#define QUERY_TERMINATED_HOSTPORT 22
+, {.name= "host:port terminated by a query string"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET http://hypnotoad.org:1234?hail=all HTTP/1.1\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= "hail=all"
+  ,.fragment= ""
+  ,.request_path= ""
+  ,.request_url= "http://hypnotoad.org:1234?hail=all"
+  ,.num_headers= 0
+  ,.headers= { }
+  ,.body= ""
+  }
+
+#define SPACE_TERMINATED_HOSTPORT 23
+, {.name= "host:port terminated by a space"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET http://hypnotoad.org:1234 HTTP/1.1\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= ""
+  ,.request_url= "http://hypnotoad.org:1234"
+  ,.num_headers= 0
+  ,.headers= { }
+  ,.body= ""
+  }
+
+#if !HTTP_PARSER_STRICT
+#define UTF8_PATH_REQ 24
+, {.name= "utf-8 path request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET /δ¶/δt/pope?q=1#narf HTTP/1.1\r\n"
+         "Host: github.com\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= "q=1"
+  ,.fragment= "narf"
+  ,.request_path= "/δ¶/δt/pope"
+  ,.request_url= "/δ¶/δt/pope?q=1#narf"
+  ,.num_headers= 1
+  ,.headers= { {"Host", "github.com" }
+             }
+  ,.body= ""
+  }
+
+#define HOSTNAME_UNDERSCORE 25
+, {.name = "hostname underscore"
+  ,.type= HTTP_REQUEST
+  ,.raw= "CONNECT home_0.netscape.com:443 HTTP/1.0\r\n"
+         "User-agent: Mozilla/1.1N\r\n"
+         "Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n"
+         "\r\n"
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 0
+  ,.method= HTTP_CONNECT
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= ""
+  ,.request_url= "home_0.netscape.com:443"
+  ,.num_headers= 2
+  ,.upgrade=""
+  ,.headers= { { "User-agent", "Mozilla/1.1N" }
+             , { "Proxy-authorization", "basic aGVsbG86d29ybGQ=" }
+             }
+  ,.body= ""
+  }
+#endif  /* !HTTP_PARSER_STRICT */
+
+#define PATCH_REQ 26
+, {.name = "PATCH request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "PATCH /file.txt HTTP/1.1\r\n"
+         "Host: www.example.com\r\n"
+         "Content-Type: application/example\r\n"
+         "If-Match: \"e0023aa4e\"\r\n"
+         "Content-Length: 10\r\n"
+         "\r\n"
+         "cccccccccc"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_PATCH
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/file.txt"
+  ,.request_url= "/file.txt"
+  ,.num_headers= 4
+  ,.headers= { { "Host", "www.example.com" }
+             , { "Content-Type", "application/example" }
+             , { "If-Match", "\"e0023aa4e\"" }
+             , { "Content-Length", "10" }
+             }
+  ,.body= "cccccccccc"
+  }
+
+#define CONNECT_CAPS_REQUEST 27
+, {.name = "connect caps request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "CONNECT HOME0.NETSCAPE.COM:443 HTTP/1.0\r\n"
+         "User-agent: Mozilla/1.1N\r\n"
+         "Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n"
+         "\r\n"
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 0
+  ,.method= HTTP_CONNECT
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= ""
+  ,.request_url= "HOME0.NETSCAPE.COM:443"
+  ,.num_headers= 2
+  ,.upgrade=""
+  ,.headers= { { "User-agent", "Mozilla/1.1N" }
+             , { "Proxy-authorization", "basic aGVsbG86d29ybGQ=" }
+             }
   ,.body= ""
   }
 
@@ -1126,7 +1339,13 @@ check_str_eq (const struct message *m,
               const char *prop,
               const char *expected,
               const char *found) {
-  if (0 != strcmp(expected, found)) {
+  if ((expected == NULL) != (found == NULL)) {
+    printf("\n*** Error: %s in '%s' ***\n\n", prop, m->name);
+    printf("expected %s\n", (expected == NULL) ? "NULL" : expected);
+    printf("   found %s\n", (found == NULL) ? "NULL" : found);
+    return 0;
+  }
+  if (expected != NULL && 0 != strcmp(expected, found)) {
     printf("\n*** Error: %s in '%s' ***\n\n", prop, m->name);
     printf("expected '%s'\n", expected);
     printf("   found '%s'\n", found);
@@ -1199,13 +1418,81 @@ message_eq (int index, const struct message *expected)
     if (!r) return 0;
   }
 
+  MESSAGE_CHECK_STR_EQ(expected, m, upgrade);
+
   return 1;
+}
+
+/* Given a sequence of varargs messages, return the number of them that the
+ * parser should successfully parse, taking into account that upgraded
+ * messages prevent all subsequent messages from being parsed.
+ */
+size_t
+count_parsed_messages(const size_t nmsgs, ...) {
+  size_t i;
+  va_list ap;
+
+  va_start(ap, nmsgs);
+
+  for (i = 0; i < nmsgs; i++) {
+    struct message *m = va_arg(ap, struct message *);
+
+    if (m->upgrade) {
+      va_end(ap);
+      return i + 1;
+    }
+  }
+
+  va_end(ap);
+  return nmsgs;
+}
+
+/* Given a sequence of bytes and the number of these that we were able to
+ * parse, verify that upgrade bodies are correct.
+ */
+void
+upgrade_message_fix(char *body, const size_t nread, const size_t nmsgs, ...) {
+  va_list ap;
+  size_t i;
+  size_t off = 0;
+ 
+  va_start(ap, nmsgs);
+
+  for (i = 0; i < nmsgs; i++) {
+    struct message *m = va_arg(ap, struct message *);
+
+    off += strlen(m->raw);
+
+    if (m->upgrade) {
+      off -= strlen(m->upgrade);
+
+      /* Check the portion of the response after its specified upgrade */
+      if (!check_str_eq(m, "upgrade", body + off, body + nread)) {
+        exit(1);
+      }
+
+      /* Fix up the response so that message_eq() will verify the beginning
+       * of the upgrade */
+      *(body + nread + strlen(m->upgrade)) = '\0';
+      messages[num_messages -1 ].upgrade = body + nread;
+
+      va_end(ap);
+      return;
+    }
+  }
+
+  va_end(ap);
+  printf("\n\n*** Error: expected a message with upgrade ***\n");
+
+  exit(1);
 }
 
 static void
 print_error (const char *raw, size_t error_location)
 {
-  fprintf(stderr, "\n*** parse error ***\n\n");
+  fprintf(stderr, "\n*** %s:%d -- %s ***\n\n",
+          "http_parser.c", HTTP_PARSER_ERRNO_LINE(parser),
+          http_errno_description(HTTP_PARSER_ERRNO(parser)));
 
   int this_line = 0, char_len = 0;
   size_t i, j, len = strlen(raw), error_location_line = 0;
@@ -1260,7 +1547,10 @@ test_message (const struct message *message)
     if (msg1len) {
       read = parse(msg1, msg1len);
 
-      if (message->upgrade && parser->upgrade) goto test;
+      if (message->upgrade && parser->upgrade) {
+        messages[num_messages - 1].upgrade = msg1 + read;
+        goto test;
+      }
 
       if (read != msg1len) {
         print_error(msg1, read);
@@ -1271,7 +1561,10 @@ test_message (const struct message *message)
 
     read = parse(msg2, msg2len);
 
-    if (message->upgrade && parser->upgrade) goto test;
+    if (message->upgrade && parser->upgrade) {
+      messages[num_messages - 1].upgrade = msg2 + read;
+      goto test;
+    }
 
     if (read != msg2len) {
       print_error(msg2, read);
@@ -1279,8 +1572,6 @@ test_message (const struct message *message)
     }
 
     read = parse(NULL, 0);
-
-    if (message->upgrade && parser->upgrade) goto test;
 
     if (read != 0) {
       print_error(message->raw, read);
@@ -1337,21 +1628,32 @@ test_message_count_body (const struct message *message)
 }
 
 void
-test_simple (const char *buf, int should_pass)
+test_simple (const char *buf, enum http_errno err_expected)
 {
   parser_init(HTTP_REQUEST);
 
   size_t parsed;
   int pass;
+  enum http_errno err;
+
   parsed = parse(buf, strlen(buf));
   pass = (parsed == strlen(buf));
+  err = HTTP_PARSER_ERRNO(parser);
   parsed = parse(NULL, 0);
   pass &= (parsed == 0);
 
   parser_free();
 
-  if (pass != should_pass) {
-    fprintf(stderr, "\n*** test_simple expected %s ***\n\n%s", should_pass ? "success" : "error", buf);
+  /* In strict mode, allow us to pass with an unexpected HPE_STRICT as
+   * long as the caller isn't expecting success.
+   */
+#if HTTP_PARSER_STRICT
+  if (err_expected != err && err_expected != HPE_OK && err != HPE_STRICT) {
+#else
+  if (err_expected != err) {
+#endif
+    fprintf(stderr, "\n*** test_simple expected %s, but saw %s ***\n\n%s\n",
+        http_errno_name(err_expected), http_errno_name(err), buf);
     exit(1);
   }
 }
@@ -1368,10 +1670,14 @@ test_header_overflow_error (int req)
   assert(parsed == strlen(buf));
 
   buf = "header-key: header-value\r\n";
+  size_t buflen = strlen(buf);
+
   int i;
   for (i = 0; i < 10000; i++) {
-    if (http_parser_execute(&parser, &settings_null, buf, strlen(buf)) != strlen(buf)) {
+    parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+    if (parsed != buflen) {
       //fprintf(stderr, "error found on iter %d\n", i);
+      assert(HTTP_PARSER_ERRNO(&parser) == HPE_HEADER_OVERFLOW);
       return;
     }
   }
@@ -1416,12 +1722,7 @@ test_no_overflow_long_body (int req, size_t length)
 void
 test_multiple3 (const struct message *r1, const struct message *r2, const struct message *r3)
 {
-  int message_count = 1;
-  if (!r1->upgrade) {
-    message_count++;
-    if (!r2->upgrade) message_count++;
-  }
-  int has_upgrade = (message_count < 3 || r3->upgrade);
+  int message_count = count_parsed_messages(3, r1, r2, r3);
 
   char total[ strlen(r1->raw)
             + strlen(r2->raw)
@@ -1440,7 +1741,10 @@ test_multiple3 (const struct message *r1, const struct message *r2, const struct
 
   read = parse(total, strlen(total));
 
-  if (has_upgrade && parser->upgrade) goto test;
+  if (parser->upgrade) {
+    upgrade_message_fix(total, read, 3, r1, r2, r3);
+    goto test;
+  }
 
   if (read != strlen(total)) {
     print_error(total, read);
@@ -1448,8 +1752,6 @@ test_multiple3 (const struct message *r1, const struct message *r2, const struct
   }
 
   read = parse(NULL, 0);
-
-  if (has_upgrade && parser->upgrade) goto test;
 
   if (read != 0) {
     print_error(total, read);
@@ -1464,12 +1766,8 @@ test:
   }
 
   if (!message_eq(0, r1)) exit(1);
-  if (message_count > 1) {
-    if (!message_eq(1, r2)) exit(1);
-    if (message_count > 2) {
-      if (!message_eq(2, r3)) exit(1);
-    }
-  }
+  if (message_count > 1 && !message_eq(1, r2)) exit(1);
+  if (message_count > 2 && !message_eq(2, r3)) exit(1);
 
   parser_free();
 }
@@ -1498,6 +1796,7 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
   int ops = 0 ;
 
   size_t buf1_len, buf2_len, buf3_len;
+  int message_count = count_parsed_messages(3, r1, r2, r3);
 
   int i,j,type_both;
   for (type_both = 0; type_both < 2; type_both ++ ) {
@@ -1526,27 +1825,27 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
 
         read = parse(buf1, buf1_len);
 
-        if (r3->upgrade && parser->upgrade) goto test;
+        if (parser->upgrade) goto test;
 
         if (read != buf1_len) {
           print_error(buf1, read);
           goto error;
         }
 
-        read = parse(buf2, buf2_len);
+        read += parse(buf2, buf2_len);
 
-        if (r3->upgrade && parser->upgrade) goto test;
+        if (parser->upgrade) goto test;
 
-        if (read != buf2_len) {
+        if (read != buf1_len + buf2_len) {
           print_error(buf2, read);
           goto error;
         }
 
-        read = parse(buf3, buf3_len);
+        read += parse(buf3, buf3_len);
 
-        if (r3->upgrade && parser->upgrade) goto test;
+        if (parser->upgrade) goto test;
 
-        if (read != buf3_len) {
+        if (read != buf1_len + buf2_len + buf3_len) {
           print_error(buf3, read);
           goto error;
         }
@@ -1554,9 +1853,13 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
         parse(NULL, 0);
 
 test:
+        if (parser->upgrade) {
+          upgrade_message_fix(total, read, 3, r1, r2, r3);
+        }
 
-        if (3 != num_messages) {
-          fprintf(stderr, "\n\nParser didn't see 3 messages only %d\n", num_messages);
+        if (message_count != num_messages) {
+          fprintf(stderr, "\n\nParser didn't see %d messages only %d\n",
+            message_count, num_messages);
           goto error;
         }
 
@@ -1565,12 +1868,12 @@ test:
           goto error;
         }
 
-        if (!message_eq(1, r2)) {
+        if (message_count > 1 && !message_eq(1, r2)) {
           fprintf(stderr, "\n\nError matching messages[1] in test_scan.\n");
           goto error;
         }
 
-        if (!message_eq(2, r3)) {
+        if (message_count > 2 && !message_eq(2, r3)) {
           fprintf(stderr, "\n\nError matching messages[2] in test_scan.\n");
           goto error;
         }
@@ -1710,13 +2013,21 @@ main (void)
 
   /// REQUESTS
 
+  test_simple("hello world", HPE_INVALID_METHOD);
+  test_simple("GET / HTP/1.1\r\n\r\n", HPE_INVALID_VERSION);
 
-  test_simple("hello world", 0);
-  test_simple("GET / HTP/1.1\r\n\r\n", 0);
 
-  test_simple("ASDF / HTTP/1.1\r\n\r\n", 0);
-  test_simple("PROPPATCHA / HTTP/1.1\r\n\r\n", 0);
-  test_simple("GETA / HTTP/1.1\r\n\r\n", 0);
+  test_simple("ASDF / HTTP/1.1\r\n\r\n", HPE_INVALID_METHOD);
+  test_simple("PROPPATCHA / HTTP/1.1\r\n\r\n", HPE_INVALID_METHOD);
+  test_simple("GETA / HTTP/1.1\r\n\r\n", HPE_INVALID_METHOD);
+
+  // Well-formed but incomplete
+  test_simple("GET / HTTP/1.1\r\n"
+              "Content-Type: text/plain\r\n"
+              "Content-Length: 6\r\n"
+              "\r\n"
+              "fooba",
+              HPE_OK);
 
   static const char *all_methods[] = {
     "DELETE",
@@ -1734,12 +2045,31 @@ main (void)
     "PROPFIND",
     "PROPPATCH",
     "UNLOCK",
+    "REPORT",
+    "MKACTIVITY",
+    "CHECKOUT",
+    "MERGE",
+    "M-SEARCH",
+    "NOTIFY",
+    "SUBSCRIBE",
+    "UNSUBSCRIBE",
+    "PATCH",
     0 };
   const char **this_method;
   for (this_method = all_methods; *this_method; this_method++) {
     char buf[200];
     sprintf(buf, "%s / HTTP/1.1\r\n\r\n", *this_method);
-    test_simple(buf, 1);
+    test_simple(buf, HPE_OK);
+  }
+
+  static const char *bad_methods[] = {
+      "C******",
+      "M****",
+      0 };
+  for (this_method = bad_methods; *this_method; this_method++) {
+    char buf[200];
+    sprintf(buf, "%s / HTTP/1.1\r\n\r\n", *this_method);
+    test_simple(buf, HPE_UNKNOWN);
   }
 
   const char *dumbfuck2 =
@@ -1777,7 +2107,7 @@ main (void)
     "\tRA==\r\n"
     "\t-----END CERTIFICATE-----\r\n"
     "\r\n";
-  test_simple(dumbfuck2, 0);
+  test_simple(dumbfuck2, HPE_OK);
 
 #if 0
   // NOTE(Wed Nov 18 11:57:27 CET 2009) this seems okay. we just read body

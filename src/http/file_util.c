@@ -64,10 +64,32 @@ int send_file(FILE *src, FILE *dst) {
 	return w_bytes;
 }
 
+/*
+ * This structure is taken from liolib.c
+ */
+typedef struct LStream {
+	FILE *f;  /* stream */
+	lua_CFunction closef;  /* to close stream (NULL for closed streams) */
+} LStream;
 
+
+/* Do not allow users to close sockets */
+static int no_close_socket(lua_State *L) {
+	LStream *p = (LStream *)luaL_checkudata(L, 1, LUA_FILEHANDLE);
+	p->closef = &no_close_socket;
+	return luaL_fileresult(L, 1, NULL);
+}
+/*
+static int close_socket(lua_State *L) {
+	LStream *p = (LStream *)luaL_checkudata(L, 1, LUA_FILEHANDLE);
+	int ret = fclose(p->f);	
+	return luaL_fileresult(L, (ret == 0), NULL);
+}
+*/
 int lua_pushfile(lua_State *L, FILE *file) {
-	FILE **client = (FILE **)lua_newuserdata(L, sizeof(FILE *));
-	*client = file;
+	LStream *p = (LStream *)lua_newuserdata(L, sizeof(LStream));
+	p->f = file;
+	p->closef = &no_close_socket;
 	luaL_setmetatable(L, LUA_FILEHANDLE);
 	return 1;
 }

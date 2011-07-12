@@ -3,7 +3,7 @@ SHARED_OPTION=shared
 #BLOCKS_EXTRA_LDFLAGS=-llua
 EVA_EXTRA_LDFLAGS=-Wl,-E
 
-LUA_LOC=3rd-party/lua-5.2.0-alpha
+LUA_LOC=3rd-party/lua-5.2.0-beta
 LUA_INC=$(LUA_LOC)/src
 LUA_STATIC_LIB=$(LUA_LOC)/src/liblua.a
 

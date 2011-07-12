@@ -117,9 +117,11 @@ static int http_lua_eval(http_parser *parser) {
 	lua_pushfile(L, conn_info->client_fd);
 
 	switch(parser->method) {
-	case HTTP_GET: lua_pushstring(L, "GET");break;
-	case HTTP_POST: lua_pushstring(L, "POST");break;
-	default: lua_pushstring(L, "UNKNOWN");
+		case HTTP_GET: lua_pushstring(L, "GET");break;
+		case HTTP_POST: lua_pushstring(L, "POST");break;
+		case HTTP_PUT: lua_pushstring(L, "PUT");break;
+		case HTTP_DELETE: lua_pushstring(L, "DELETE");break;
+		default: lua_pushstring(L, "UNKNOWN");
 	}
 	lua_eval(L);
 	fclose(conn_info->client_fd);
@@ -279,6 +281,8 @@ http_parser_settings *request_processor_settings_init() {
 	settings->on_body = on_body;
 	settings->on_headers_complete = start_processing;
 	settings->on_message_complete = message_complete;
+	settings->on_url = NULL;
+	settings->on_fragment = NULL;
 	return settings;
 }
 void request_processor_settings_destroy(http_parser_settings *settings) {
