@@ -97,6 +97,7 @@ int main(int argc, char **argv) {
 	handler.end_cb = msg_end;
 	init_http_parser_pool(3);
 	parser_settings = request_processor_settings_init();
+	log_info("Running as pid: %d", getpid());
 	while (is_alive) {
 		mb_channel_receive(tcp_channel, &handler);
 	}
