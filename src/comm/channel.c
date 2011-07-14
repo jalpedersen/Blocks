@@ -168,6 +168,7 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	char buffer[CHANNEL_BUFFER];
 	int clients_length;
 	struct client_info *clients;
+	int exit_code;
 	mb_message_part_cb_t part_cb;
 	mb_message_begin_cb_t begin_cb;
 	mb_message_end_cb_t end_cb;
@@ -186,13 +187,14 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	clients_length = max_sd + CLIENTS;
 	clients = malloc(sizeof(struct client_info) * clients_length);
 	memset(clients, 0, sizeof(struct client_info) * clients_length);
-
+	exit_code = 0;
 	while (1) {
 		memcpy(&working_set, &master_set, sizeof(master_set));
 		ret = select(max_sd + 1, &working_set, NULL, NULL, &timeout);
 		if (ret < 0) {
 			log_perror("select failed");
-			return -1;
+			exit_code = -1;
+			break;
 		}
 		if (ret == 0) {
 			/* Time-out. Reset connections. */
@@ -294,7 +296,7 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 		}
 	}
 	free(clients);
-	return 0;
+	return exit_code;
 }
 
 static mb_channel_t *mb_channel_reopen_unix(mb_channel_t *channel) {
