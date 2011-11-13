@@ -157,24 +157,31 @@ struct client_info {
 	void *aux_data;
 };
 
+static void *realloc_clients(void *clients, size_t new_size) {
+    void *new = realloc(clients, new_size);
+    if (new == NULL) {
+        log_perror("Failed to allocate more memory for clients");
+        return clients;
+    }
+    return new;
+}
+
+
 int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	fd_set master_set, working_set;
 	int ready_count;
 	int sd, new_sd;
-	int max_sd, ret;
+	int max_sd, ret, max_client;
 	int is_conn_active;
 	int position;
 	struct timeval timeout;
 	char buffer[CHANNEL_BUFFER];
-	int clients_length;
+	int clients_length, new_clients;
 	struct client_info *clients;
 	int exit_code;
 	mb_message_part_cb_t part_cb;
 	mb_message_begin_cb_t begin_cb;
 	mb_message_end_cb_t end_cb;
-
-	timeout.tv_sec = 30; /* 30 sec. timeout*/
-	timeout.tv_usec = 0;
 
 	part_cb = handler->part_cb;
 	begin_cb = handler->begin_cb;
@@ -188,49 +195,65 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	clients = malloc(sizeof(struct client_info) * clients_length);
 	memset(clients, 0, sizeof(struct client_info) * clients_length);
 	exit_code = 0;
+    max_client = -1;
 	while (1) {
-		memcpy(&working_set, &master_set, sizeof(master_set));
-		ret = select(max_sd + 1, &working_set, NULL, NULL, &timeout);
-		if (ret < 0) {
-			log_perror("select failed");
+        memcpy(&working_set, &master_set, sizeof(master_set));
+        /*Set timeout before each select, since select can mess with it*/
+		timeout.tv_sec = 10; /* 10 sec. timeout*/
+        timeout.tv_usec = 0;
+        ret = select(max_sd + 1, &working_set, NULL, NULL, &timeout);
+        if (ret < 0) {
+            log_perror("select failed");
 			exit_code = -1;
 			break;
 		}
 		if (ret == 0) {
 			/* Time-out. Reset connections. */
-			break;
+            break;
 		}
+
 		ready_count = ret;
 		for (sd = 0; sd <= max_sd && ready_count > 0; sd++) {
-			if (FD_ISSET(sd, &working_set)) {
-				ready_count -= 1;
-				if (sd == channel->sd) {
+            if (sd > max_client) {
+                max_client = sd;
+            }
+            if (max_sd < max_client) {
+                max_client = max_sd;
+            }
+            if (FD_ISSET(sd, &working_set)) {
+                ready_count -= 1;
+    			if (sd == channel->sd) {
 					new_sd = 0;
-					while (new_sd != -1) {
+                    while (new_sd >= 0) {
 						new_sd = accept(channel->sd, NULL, NULL);
 						if (new_sd < 0) {
 							if (errno != EWOULDBLOCK) {
-								log_perror("accept failed");
+								log_perror("accept failed (%d)", errno);
 							}
 							break;
 						}
-						FD_SET(new_sd, &master_set);
-						set_non_blocking(new_sd, 0);
+                        FD_SET(new_sd, &master_set);
+                        set_non_blocking(new_sd, 0);
 						if (new_sd > max_sd) {
 							max_sd = new_sd;
-							if (max_sd >= clients_length) {
-								log_debug("Increasing aux_data array");
-								clients = realloc(clients,
-										sizeof(struct client_info) * (clients_length + CLIENTS));
-								void *new_area =
-										(char*)clients + (sizeof(struct client_info) * clients_length);
-								memset(new_area, 0, sizeof(struct client_info) * CLIENTS);
-								clients_length+=CLIENTS;
-							}
-						}
+                        }
 					}
-				} else {
-					is_conn_active = 1;
+                } else {
+                    if (max_client >= clients_length) {
+                        new_clients = max_client-clients_length+CLIENTS;
+                        log_debug("Increasing aux_data array: %d", clients_length + new_clients);
+                        clients = realloc_clients(clients,
+                                sizeof(struct client_info) * (clients_length + new_clients));
+                        void *new_area =
+                            (char*)clients + (sizeof(struct client_info) * clients_length);
+                        memset(new_area, 0, sizeof(struct client_info) * new_clients);
+                        clients_length+=new_clients;
+                    } else if (max_client < clients_length - CLIENTS) {
+                        clients_length = max_client+1;
+                        log_debug("Shrinking client buffer: %d", clients_length);
+                        clients = realloc_clients(clients, (sizeof(struct client_info) *clients_length));
+                    }
+                    is_conn_active = 1;
 					position = 0;
 					if (clients[sd].position == 0) {
 						// Begin new state
@@ -274,11 +297,7 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 								max_sd -= 1;
 							}
 						}
-						if (max_sd < clients_length - CLIENTS) {
-							log_debug("Shrinking client buffer");
-							clients_length -= CLIENTS;
-							clients = realloc(clients, (sizeof(struct client_info) *clients_length));
-						}
+						
 					}
 				}
 			}
@@ -290,9 +309,10 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 			continue; /*Do not close server socket*/
 		}
 		if (FD_ISSET(sd, &master_set)) {
-			end_cb(sd, &clients[sd].aux_data);
-			clients[sd].position = 0;
+			//end_cb(sd, &clients[sd].aux_data);
+			//clients[sd].position = 0;
 			close(sd);
+            FD_CLR(sd, &master_set);
 		}
 	}
 	free(clients);

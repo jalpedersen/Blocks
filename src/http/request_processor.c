@@ -166,7 +166,7 @@ static int http_send_file(http_parser *parser) {
 	}
 	if (file_ok) {
 		fd = fopen(file, "r");
-		log_debug("Getting: %s", file);
+		//log_debug("Getting: %s", file);
 		send_header(conn_info->client_fd, 200, "OK",
 				get_mimetype(file, conn_info->conf));
 		send_file(fd, conn_info->client_fd);
@@ -200,7 +200,7 @@ static int start_processing(http_parser *parser) {
 	conn_info = (struct http_conn_info*)parser->data;
 
 	lua_state = get_script(conn_info->conf, conn_info->path);
-	log_debug("%s", conn_info->path);
+	//log_debug("%s", conn_info->path);
 	if (lua_state != NULL) {
 		conn_info->type = 'L';
 		conn_info->lua = lua_state;

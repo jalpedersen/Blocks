@@ -69,13 +69,11 @@ int dispatch(int client_sd, size_t size, int position, void *data, void **aux_da
 
 int msg_start(int client_sd, void **aux_data) {
 	http_parser *parser = get_http_parser();
-	log_debug("Starting %d", client_sd);
 	*aux_data = request_processor_reset(parser, client_sd, conf);
 	return 0;
 }
 
 int msg_end(int client_sd, void **aux_data) {
-	log_debug("Ending %d", client_sd);
 	release_http_parser(*(http_parser**)aux_data);
 	*aux_data = NULL;
 	return 0;
