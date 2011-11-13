@@ -3,13 +3,9 @@ require ('io')
 
 print("Starting up...");
 handler_setup = function() 
-    handler = function(path, query, sd)
-        blocks.sleep(10);
-        print ('D: sent: ', sent, ' recv: ', recv);
-        print ('path:          ' , path)
-        print ('query:         ', query)
-        print ('client socket: ', sd)
-        collectgarbage()
+    handler = function(path, query)
+        blocks.sleep(1);
+        print (path, query);
         return handler
     end
     return handler
@@ -18,14 +14,11 @@ mbox = blocks.spawn(handler_setup)
 
 dispatch = function(path, query, sd)
     fh = io.popen('ls');
-    print (sd)
     for line in fh:lines() do
-        print (line)
-	sd:write(line)
+	    sd:write(line)
     end
     sd:write("\n");
-    sd:close()
-    print (mbox:send(path, query))
+    mbox:send(path, query)
 end
 p = blocks.spawn(
 	function(table, table2) print 'hi there from a different thread of execution'
@@ -42,10 +35,11 @@ p = blocks.spawn(
 			print (a .. ', ' .. b .. ', ' .. c) 
 			print (d);
 			print (e);	
+            return a;
 		end end, {3,5, {1,2}, function()end, {1}, {a={b, {p=993}}}}, {a=2, c=true, b='test'})
 
 r = p:send(10, 1.223, 'Hello there', true, false, {fisk = 2}, function(a) a() end)
-print (r:get())
+print ("response", r:get())
 
 p2 = blocks.spawn(function() return function() return 42 end end) 
 r2 = p2:send('testing')

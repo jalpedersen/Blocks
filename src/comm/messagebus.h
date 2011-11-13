@@ -33,6 +33,8 @@ mb_channel_t *mb_channel_bind_port(int port);
 
 mb_channel_t *mb_channel_open_path(const char *path);
 
+void mb_channel_stop(mb_channel_t *channel);
+
 int mb_channel_destroy(mb_channel_t *channel);
 
 int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler);

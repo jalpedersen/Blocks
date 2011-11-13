@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -28,6 +29,8 @@
 #include <pthread.h>
 
 static httpd_conf_t *conf;
+static mb_channel_t *tcp_channel;
+static volatile int is_alive;
 
 static http_parser **parser_pool;
 static int parser_stack_top;
@@ -79,10 +82,13 @@ int msg_end(int client_sd, void **aux_data) {
 	return 0;
 }
 
+void term_handler(int signal) {
+    is_alive = 0;
+    mb_channel_stop(tcp_channel);
+}
+
 int main(int argc, char **argv) {
-	int is_alive;
 	mb_handler_t handler;
-	mb_channel_t *tcp_channel;
 
 	conf = httpd_conf_load("scripts/eva.cfg");
 
@@ -96,10 +102,13 @@ int main(int argc, char **argv) {
 	init_http_parser_pool(3);
 	parser_settings = request_processor_settings_init();
 	log_info("Running as pid: %d", getpid());
+    signal(SIGTERM, term_handler);
+    signal(SIGINT, term_handler);
+    signal(SIGPIPE, SIG_IGN);
 	while (is_alive) {
 		mb_channel_receive(tcp_channel, &handler);
 	}
-
+    log_info("Stopping");
 	if (tcp_channel != NULL) {
 		mb_channel_destroy(tcp_channel);
 		return 0;

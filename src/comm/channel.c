@@ -26,6 +26,7 @@ enum addr_type {
 struct mb_channel {
 	int sd;
 	enum addr_type type;
+    volatile int alive;
 	const char *name;
 	union {
 		struct sockaddr_un un;
@@ -64,6 +65,7 @@ mb_channel_t *mb_channel_bind_path(const char *path) {
 
 	channel = (mb_channel_t*) malloc(sizeof(mb_channel_t));
 	channel->type = ADDR_UNIX;
+    channel->alive = 1;
 	channel->sd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (channel->sd < 0) {
 		log_perror("socket failed");
@@ -111,6 +113,7 @@ mb_channel_t *mb_channel_bind_port(int port) {
 
 	channel = (mb_channel_t*) malloc(sizeof(mb_channel_t));
 	channel->type = ADDR_INET;
+    channel->alive = 1;
 	channel->sd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (channel->sd < 0) {
 		log_perror("socket failed");
@@ -196,7 +199,7 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	memset(clients, 0, sizeof(struct client_info) * clients_length);
 	exit_code = 0;
     max_client = -1;
-	while (1) {
+	while (channel->alive) {
         memcpy(&working_set, &master_set, sizeof(master_set));
         /*Set timeout before each select, since select can mess with it*/
 		timeout.tv_sec = 10; /* 10 sec. timeout*/
@@ -317,6 +320,10 @@ int mb_channel_receive(mb_channel_t *channel, mb_handler_t *handler) {
 	}
 	free(clients);
 	return exit_code;
+}
+
+void mb_channel_stop(mb_channel_t *channel) {
+    channel->alive = 0;
 }
 
 static mb_channel_t *mb_channel_reopen_unix(mb_channel_t *channel) {
